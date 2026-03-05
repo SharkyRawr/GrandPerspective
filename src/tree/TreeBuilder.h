@@ -19,8 +19,6 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include <fts.h>
-
 #import "FileItem.h"
 
 extern NSString  *LogicalFileSizeName;
@@ -36,6 +34,7 @@ typedef NS_ENUM(NSInteger, FileSizeEnum) {
 @class AlertMessage;
 @class FilteredTreeGuide;
 @class TreeBalancer;
+@class UniformType;
 @class UniformTypeInventory;
 @class PlainFileItem;
 @class DirectoryItem;
@@ -53,8 +52,6 @@ typedef NS_ENUM(NSInteger, FileSizeEnum) {
 
   NSString  *fileSizeMeasureName;
   FileSizeEnum  fileSizeMeasure;
-
-  FTS  *ftsp;
 
   // In case logical file sizes are used, tracks total physical size.
   item_size_t  totalPhysicalSize;
@@ -81,6 +78,9 @@ typedef NS_ENUM(NSInteger, FileSizeEnum) {
   BOOL  debugLogEnabled;
   BOOL  ignoreHardLinksForDirectories;
   BOOL  fastPackageCheckEnabled;
+  NSMutableDictionary<NSString *, UniformType *>  *uniformTypeCacheByExtension;
+  uint64_t  scanRootDeviceID;
+  BOOL  scanRootDeviceIDKnown;
 }
 
 + (NSArray *)fileSizeMeasureNames;
