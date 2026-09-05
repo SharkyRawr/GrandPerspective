@@ -36,7 +36,6 @@ typedef NS_ENUM(NSInteger, FileSizeEnum) {
 @class AlertMessage;
 @class FilteredTreeGuide;
 @class TreeBalancer;
-@class UniformType;
 @class UniformTypeInventory;
 @class PlainFileItem;
 @class DirectoryItem;
@@ -81,8 +80,7 @@ typedef NS_ENUM(NSInteger, FileSizeEnum) {
   BOOL  fastPackageCheckEnabled;
   os_log_t logger;
   os_log_t trustedLogger;
-  uint64_t  scanRootDeviceID;
-  BOOL  scanRootDeviceIDKnown;
+  dev_t  scanRootDeviceID;
 }
 
 + (NSArray *)fileSizeMeasureNames;

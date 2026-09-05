@@ -22,16 +22,13 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/attr.h>
-#include <sys/vnode.h>
+#include "BulkDirectoryEntry.h"
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#ifndef FSOPT_PACK_INVAL_ATTRS
-#define FSOPT_PACK_INVAL_ATTRS 0
-#endif
 
 #import "AlertMessage.h"
 #import "PlainFileItem.h"
@@ -68,7 +65,6 @@ NSString  *FastBehavior = @"fast";
 
 static const int AUTORELEASE_PERIOD = 1024;
 static const size_t ATTR_BULK_BUFFER_SIZE = 256 * 1024;
-static const uint64_t ATTR_BULK_OPTIONS = FSOPT_PACK_INVAL_ATTRS;
 
 /* Helper class that is used to temporarily store additional info for directories that are being
  * scanned. It stores the info that is not maintained by the DirectoryItem class yet is needed
@@ -148,7 +144,6 @@ static const uint64_t ATTR_BULK_OPTIONS = FSOPT_PACK_INVAL_ATTRS;
                path:(NSString *)path
               dirfd:(int)dirfd
     parentCollector:(DirectoryItem *)parentCollector;
-- (BOOL) unwindStackToParent:(NSString *)parentPath;
 
 - (FileItem *)finalizeStackFrame:(ScanStackFrame *)stackFrame;
 
@@ -163,7 +158,6 @@ static const uint64_t ATTR_BULK_OPTIONS = FSOPT_PACK_INVAL_ATTRS;
 - (int) determineNumSubFoldersForPath:(NSString *)path;
 
 - (int) startScan:(NSString *)path;
-- (void) stopScan:(int)fd;
 
 // Scan a directory using getattrlistbulk
 - (void) scanDirectoryWithFrame:(ScanStackFrame *)frame
@@ -176,40 +170,6 @@ static const uint64_t ATTR_BULK_OPTIONS = FSOPT_PACK_INVAL_ATTRS;
 CFAbsoluteTime convertTimespec(struct timespec ts) {
   // Ignore nanoseconds; we do not need sub-second accuracy
   return (CFAbsoluteTime)((CFTimeInterval)ts.tv_sec - kCFAbsoluteTimeIntervalSince1970);
-}
-
-static BOOL readBulkField(const char **cursor,
-                          const char *recordEnd,
-                          void *dest,
-                          size_t size) {
-  if ((size_t)(recordEnd - *cursor) < size) {
-    return NO;
-  }
-
-  memcpy(dest, *cursor, size);
-  *cursor += size;
-  return YES;
-}
-
-static mode_t modeForObjectType(fsobj_type_t objType) {
-  switch (objType) {
-    case VREG:
-      return S_IFREG;
-    case VDIR:
-      return S_IFDIR;
-    case VBLK:
-      return S_IFBLK;
-    case VCHR:
-      return S_IFCHR;
-    case VLNK:
-      return S_IFLNK;
-    case VSOCK:
-      return S_IFSOCK;
-    case VFIFO:
-      return S_IFIFO;
-    default:
-      return 0;
-  }
 }
 
 @implementation ScanStackFrame
@@ -249,25 +209,21 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
                    path:(NSString *)pathVal
                   dirfd:(int)dirfdVal
         parentCollector:(DirectoryItem *)parentCollectorVal {
-  if (parent != parentVal) {
-    [parent release];
-  }
-  parent = [parentVal retain];
+  [parentVal retain];
+  [parent release];
+  parent = parentVal;
 
-  if (collector != collectorVal) {
-    [collector release];
-  }
-  collector = [collectorVal retain];
+  [collectorVal retain];
+  [collector release];
+  collector = collectorVal;
 
-  if (path != pathVal) {
-    [path release];
-  }
-  path = [pathVal retain];
+  [pathVal retain];
+  [path release];
+  path = pathVal;
 
-  if (parentCollector != parentCollectorVal) {
-    [parentCollector release];
-  }
-  parentCollector = [parentCollectorVal retain];
+  [parentCollectorVal retain];
+  [parentCollector release];
+  parentCollector = parentCollectorVal;
 
   contentsEnumerated = NO;
   bulkRecordCursor = bulkBuffer;
@@ -332,7 +288,6 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
     typeInventory = [UniformTypeInventory.defaultUniformTypeInventory retain];
 
     hardLinkedFileNumbers = [[NSMutableSet alloc] initWithCapacity: 32];
-    scanRootDeviceIDKnown = NO;
     abort = NO;
     
     progressTracker =
@@ -462,28 +417,29 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
 
   [self addToStack: dirItem path: path dirfd: dirfd parentCollector: nil];
 
+  autoreleasePool = [[NSAutoreleasePool alloc] init];
   @try {
     // Process directories on the stack until empty
-    while (dirStackTopIndex >= 0) {
+    while (!abort && dirStackTopIndex >= 0) {
       ScanStackFrame  *parent = dirStack[dirStackTopIndex];
       [self scanDirectoryWithFrame: parent
                            recurse: YES
                       numProcessed: &i
                    autoreleasePool: &autoreleasePool];
-      
-      if (abort) {
-        return NO;
-      }
+
     }
 
-    NSAssert(dirStackTopIndex == -1, @"Final stack unwind failed?");
+    NSAssert(abort || dirStackTopIndex == -1, @"Final stack unwind failed?");
   }
   @finally {
+    while (dirStackTopIndex >= 0) {
+      ScanStackFrame *frame = dirStack[dirStackTopIndex--];
+      [treeGuide emergedFromDirectory: frame->parent];
+      [frame resetFrame];
+    }
     [autoreleasePool release];
+    dispatch_sync(treeBalanceDispatchQueue, ^{});
   }
-
-  // Wait for the tree balancing to end
-  dispatch_sync(treeBalanceDispatchQueue, ^{});
 
   return !abort;
 }
@@ -504,15 +460,16 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
                    dirfd: dirfd
          parentCollector: nil];
 
-  NSAutoreleasePool  *autoreleasePool = nil;
+  NSAutoreleasePool  *autoreleasePool = [[NSAutoreleasePool alloc] init];
   int  i = 0;
   
-  [self scanDirectoryWithFrame: parent
-                        recurse: NO
-                   numProcessed: &i
-                autoreleasePool: &autoreleasePool];
-  
-  [autoreleasePool release];
+  @try {
+    [self scanDirectoryWithFrame: parent recurse: NO
+                   numProcessed: &i autoreleasePool: &autoreleasePool];
+  } @finally {
+    [parent resetFrame];
+    [autoreleasePool release];
+  }
 
   return collector;
 }
@@ -557,7 +514,7 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
                                   isDir:(BOOL)isDir
                                  fileType:(UTType *)fileType {
   if ([fileType.identifier isEqualToString: @"com.apple.icloud-file-fault"]) {
-    NSURL  *url = [NSURL fileURLWithFileSystemRepresentation: path.UTF8String
+    NSURL  *url = [NSURL fileURLWithFileSystemRepresentation: path.fileSystemRepresentation
                                                  isDirectory: isDir
                                                relativeToURL: NULL];
     NSDictionary  *dict = [NSDictionary dictionaryWithContentsOfURL: url];
@@ -755,34 +712,10 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
   
   [treeGuide descendIntoDirectory: dirItem];
   [progressTracker processingFolder: dirItem];
-  if (os_log_type_enabled(logger, OS_LOG_TYPE_DEBUG)) {
-    os_log_debug(trustedLogger, "Scanning %{public}@", path);
-  }
+  os_log_debug(trustedLogger, "Scanning %{public}@", path);
   if (dirStackTopIndex < NUM_SCAN_PROGRESS_ESTIMATE_LEVELS) {
     [progressTracker setNumSubFolders: [self determineNumSubFoldersForPath: path]];
   }
-}
-
-- (BOOL) unwindStackToParent:(NSString *)parentPath {
-  FileItem  *finalizedSubdir = nil;
-  while (dirStackTopIndex >= 0) {
-    ScanStackFrame  *topDir = dirStack[dirStackTopIndex];
-
-    if (finalizedSubdir != nil) {
-      [topDir->collector addSubdir: finalizedSubdir];
-      finalizedSubdir = nil;
-    }
-    if ((parentPath == nil && topDir == nil) || 
-        (parentPath != nil && [topDir->path isEqualToString: parentPath])) {
-      return YES;
-    }
-
-    finalizedSubdir = [self finalizeStackFrame: topDir];
-    [topDir resetFrame];
-    dirStackTopIndex--;
-  }
-
-  return parentPath == nil;
 }
 
 - (FileItem *)finalizeStackFrame:(ScanStackFrame *)topDir {
@@ -844,7 +777,7 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
       // an optimization it to only perform this check if the path has an extension. A drawback is
       // that this fails to identify some packages. On my macOS 12.6.3 on 2023/05 this applies to
       // ~/Pictures/Photo Booth Library and ~/Library/Application Support/SyncServices/Local.
-      NSURL  *url = [NSURL fileURLWithFileSystemRepresentation: path.UTF8String
+      NSURL  *url = [NSURL fileURLWithFileSystemRepresentation: path.fileSystemRepresentation
                                                    isDirectory: YES
                                                  relativeToURL: NULL];
       isPackage = url.isPackage;
@@ -863,24 +796,24 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
                                        accessTime: convertTimespec(statBlock->st_atimespec)];
 
     NSString* skipReason = nil;
-    if (scanRootDeviceIDKnown && statBlock->st_dev != (dev_t)scanRootDeviceID) {
+    if (statBlock->st_dev != scanRootDeviceID) {
       // Preserve legacy FTS_XDEV behavior: include mountpoint directory but do not descend into it.
-      skipReason = @"Skipping scan across filesystem boundary at %@";
+      skipReason = @"Skipping scan across filesystem boundary";
     } else if (statBlock->st_flags & SF_DATALESS) {
       // Do not scan contents of folders that are not already available offline. Doing so would
       // trigger download of their contents. This is unwanted, as the state of the volume should
       // not change as a result of the scan. Additionally, it would slow down scanning
       // unnecessarily (and block scanning if there is no network access).
-      skipReason = @"Skipping scan of dataless folder %@";
+      skipReason = @"Skipping scan of dataless folder";
     } else if ([name isEqualToString: @"Data"] &&
                [dirChildItem.path isEqualToString: @"/System/Volumes/Data"]) {
       // Do not scan the contents of the System Data volume to prevent its contents from being
       // scanned twice (as the contents also appear inside the root via firmlinks). Ideally, we use
       // a more generic mechanism for this, similar to how hardlinks are handled, but there does
       // not yet seem to be an API to support this.
-      skipReason = @"Skipping scan of data volume %@";
+      skipReason = @"Skipping scan of data volume";
     } else if (![treeGuide shouldDescendIntoDirectory: dirChildItem]) {
-      skipReason = @"Skipping scan of %@ (filtered out)";
+      skipReason = @"Skipping filtered folder";
     }
 
     if (skipReason) {
@@ -891,7 +824,7 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
       if (visitDescendants) {
         // Open the subdirectory for getattrlistbulk
         int subdirfd = openat(parent->dirfd,
-                              name.UTF8String,
+                              name.fileSystemRepresentation,
                               O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
         if (subdirfd < 0) {
           os_log_debug(logger, "Error opening directory %@: %s", path, strerror(errno));
@@ -983,13 +916,13 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
 
 - (int) determineNumSubFoldersForPath:(NSString *)path {
   int  numSubDirs = 0;
-  DIR *dir = opendir(path.UTF8String);
+  DIR *dir = opendir(path.fileSystemRepresentation);
   if (dir == NULL) {
     return 0;
   }
   
   struct dirent *entry;
-  while ((entry = readdir(dir)) != NULL) {
+  while (!abort && (entry = readdir(dir)) != NULL) {
     if (entry->d_name[0] == '.') {
       if (entry->d_name[1] == '\0' || 
           (entry->d_name[1] == '.' && entry->d_name[2] == '\0')) {
@@ -1002,8 +935,7 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
     } else if (entry->d_type == DT_UNKNOWN) {
       // Need to stat to determine type
       struct stat st;
-      NSString *fullPath = [path stringByAppendingPathComponent:[NSString stringWithUTF8String:entry->d_name]];
-      if (lstat(fullPath.UTF8String, &st) == 0 && S_ISDIR(st.st_mode)) {
+      if (fstatat(dirfd(dir), entry->d_name, &st, AT_SYMLINK_NOFOLLOW) == 0 && S_ISDIR(st.st_mode)) {
         numSubDirs++;
       }
     }
@@ -1014,7 +946,7 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
 }
 
 - (int) startScan:(NSString *)path {
-  int fd = open(path.UTF8String, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  int fd = open(path.fileSystemRepresentation, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
   if (fd < 0) {
     os_log_debug(logger, "Error: open failed for %@: %s", path, strerror(errno));
     return -1;
@@ -1027,16 +959,9 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
     return -1;
   }
 
-  scanRootDeviceID = (uint64_t)st.st_dev;
-  scanRootDeviceIDKnown = YES;
+  scanRootDeviceID = st.st_dev;
 
   return fd;
-}
-
-- (void) stopScan:(int)fd {
-  if (fd >= 0) {
-    close(fd);
-  }
 }
 
 // Scan a directory using getattrlistbulk
@@ -1044,331 +969,70 @@ static mode_t modeForObjectType(fsobj_type_t objType) {
                         recurse:(BOOL)visitDescendants
                    numProcessed:(int *)numProcessed
                   autoreleasePool:(NSAutoreleasePool **)pool {
-  BOOL scanFailed = NO;
+  struct attrlist attrs = bulkDirectoryAttributes(fileSizeMeasure == LogicalFileSize);
+  if (frame->bulkBuffer == NULL) {
+    os_log_error(logger, "Failed to allocate scan buffer for %@", frame->path);
+    frame->contentsEnumerated = YES;
+  }
 
-  if (!frame->contentsEnumerated) {
-    if (frame->bulkBuffer == NULL) {
-      os_log_debug(logger, "Failed to allocate bulk scan buffer for %@", frame->path);
-      frame->contentsEnumerated = YES;
-      scanFailed = YES;
-    }
-
-    struct attrlist attrList;
-    memset(&attrList, 0, sizeof(attrList));
-    attrList.bitmapcount = ATTR_BIT_MAP_COUNT;
-    attrList.commonattr = ATTR_CMN_RETURNED_ATTRS
-                          | ATTR_CMN_NAME
-                          | ATTR_CMN_OBJTYPE
-                          | ATTR_CMN_DEVID
-                          | ATTR_CMN_CRTIME
-                          | ATTR_CMN_MODTIME
-                          | ATTR_CMN_ACCTIME
-                          | ATTR_CMN_FLAGS
-                          | ATTR_CMN_FILEID;
-    attrList.dirattr = ATTR_DIR_LINKCOUNT;
-    attrList.fileattr = ATTR_FILE_LINKCOUNT | ATTR_FILE_ALLOCSIZE;
-    if (fileSizeMeasure == LogicalFileSize) {
-      attrList.fileattr |= ATTR_FILE_DATALENGTH;
-    }
-
-    while (!abort && !frame->contentsEnumerated && !scanFailed) {
-      if (frame->bulkRecordIndex >= frame->bulkRecordCount) {
-        int numEntries = getattrlistbulk(frame->dirfd,
-                                         &attrList,
-                                         frame->bulkBuffer,
-                                         ATTR_BULK_BUFFER_SIZE,
-                                         ATTR_BULK_OPTIONS);
-        if (numEntries == 0) {
-          frame->contentsEnumerated = YES;
-          break;
-        }
-        if (numEntries < 0) {
-          os_log_debug(logger, "getattrlistbulk failed for %@: %s", frame->path, strerror(errno));
-          frame->contentsEnumerated = YES;
-          scanFailed = YES;
-          break;
-        }
-
-        frame->bulkRecordCount = numEntries;
-        frame->bulkRecordIndex = 0;
-        frame->bulkRecordCursor = frame->bulkBuffer;
-      }
-
-      const char *recordStart = frame->bulkRecordCursor;
-      const char *bufferEnd = frame->bulkBuffer + ATTR_BULK_BUFFER_SIZE;
-      uint32_t entryLength = *(const uint32_t *)recordStart;
-
-      if (entryLength < (sizeof(uint32_t) + sizeof(attribute_set_t))
-          || recordStart + entryLength > bufferEnd) {
-        if (os_log_type_enabled(logger, OS_LOG_TYPE_DEBUG)) {
-          os_log_debug(logger, "Unexpected getattrlistbulk record size %u for %@", entryLength, frame->path);
+  while (!abort && !frame->contentsEnumerated) {
+    if (frame->bulkRecordIndex == frame->bulkRecordCount) {
+      int count = getattrlistbulk(frame->dirfd, &attrs, frame->bulkBuffer,
+                                  ATTR_BULK_BUFFER_SIZE, 0);
+      if (count <= 0) {
+        if (count < 0 && errno == EINTR) continue;
+        if (count < 0) {
+          os_log_error(logger, "getattrlistbulk failed for %@: %s", frame->path, strerror(errno));
         }
         frame->contentsEnumerated = YES;
-        scanFailed = YES;
         break;
       }
-
-      const char *recordEnd = recordStart + entryLength;
-
-      frame->bulkRecordCursor += entryLength;
-      frame->bulkRecordIndex++;
-
-      const char *field = recordStart + sizeof(uint32_t);
-      attribute_set_t returnedAttrs;
-      attrreference_t nameRef;
-      const char *nameRefField = NULL;
-      fsobj_type_t objType = VNON;
-      struct timespec creationTime = {0, 0};
-      struct timespec modificationTime = {0, 0};
-      struct timespec accessTime = {0, 0};
-      uint32_t itemFlags = 0;
-      uint64_t fileId = 0;
-      dev_t deviceId = 0;
-      uint32_t dirLinkCount = 0;
-      uint32_t fileLinkCount = 0;
-      off_t fileAllocSize = 0;
-      off_t fileDataLength = 0;
-      BOOL hasNameRef = NO;
-      BOOL metadataParseFailed = NO;
-
-      if (!readBulkField(&field, recordEnd, &returnedAttrs, sizeof(returnedAttrs))) {
-        if (os_log_type_enabled(logger, OS_LOG_TYPE_DEBUG)) {
-          os_log_debug(logger, "Failed to parse getattrlistbulk record for %@", frame->path);
-        }
-        scanFailed = YES;
-        break;
-      }
-
-      if ((returnedAttrs.commonattr & ATTR_CMN_NAME) != 0) {
-        nameRefField = field;
-        if (!readBulkField(&field, recordEnd, &nameRef, sizeof(nameRef))) {
-          if (os_log_type_enabled(logger, OS_LOG_TYPE_DEBUG)) {
-            os_log_debug(logger, "Failed to parse name in getattrlistbulk record for %@", frame->path);
-          }
-          continue;
-        }
-        hasNameRef = YES;
-      }
-      if ((returnedAttrs.commonattr & ATTR_CMN_OBJTYPE) != 0
-          && !readBulkField(&field, recordEnd, &objType, sizeof(objType))) {
-        metadataParseFailed = YES;
-      }
-      if ((returnedAttrs.commonattr & ATTR_CMN_CRTIME) != 0
-          && !readBulkField(&field, recordEnd, &creationTime, sizeof(creationTime))) {
-        metadataParseFailed = YES;
-      }
-      if ((returnedAttrs.commonattr & ATTR_CMN_MODTIME) != 0
-          && !readBulkField(&field, recordEnd, &modificationTime, sizeof(modificationTime))) {
-        metadataParseFailed = YES;
-      }
-      if ((returnedAttrs.commonattr & ATTR_CMN_ACCTIME) != 0
-          && !readBulkField(&field, recordEnd, &accessTime, sizeof(accessTime))) {
-        metadataParseFailed = YES;
-      }
-      if ((returnedAttrs.commonattr & ATTR_CMN_FLAGS) != 0
-          && !readBulkField(&field, recordEnd, &itemFlags, sizeof(itemFlags))) {
-        metadataParseFailed = YES;
-      }
-      if ((returnedAttrs.commonattr & ATTR_CMN_FILEID) != 0
-          && !readBulkField(&field, recordEnd, &fileId, sizeof(fileId))) {
-        metadataParseFailed = YES;
-      }
-      if ((returnedAttrs.commonattr & ATTR_CMN_DEVID) != 0
-          && !readBulkField(&field, recordEnd, &deviceId, sizeof(deviceId))) {
-        metadataParseFailed = YES;
-      }
-      if ((returnedAttrs.dirattr & ATTR_DIR_LINKCOUNT) != 0
-          && !readBulkField(&field, recordEnd, &dirLinkCount, sizeof(dirLinkCount))) {
-        metadataParseFailed = YES;
-      }
-      if ((returnedAttrs.fileattr & ATTR_FILE_LINKCOUNT) != 0
-          && !readBulkField(&field, recordEnd, &fileLinkCount, sizeof(fileLinkCount))) {
-        metadataParseFailed = YES;
-      }
-      if ((returnedAttrs.fileattr & ATTR_FILE_ALLOCSIZE) != 0
-          && !readBulkField(&field, recordEnd, &fileAllocSize, sizeof(fileAllocSize))) {
-        metadataParseFailed = YES;
-      }
-      if ((returnedAttrs.fileattr & ATTR_FILE_DATALENGTH) != 0
-          && !readBulkField(&field, recordEnd, &fileDataLength, sizeof(fileDataLength))) {
-        metadataParseFailed = YES;
-      }
-
-      if (metadataParseFailed && os_log_type_enabled(logger, OS_LOG_TYPE_DEBUG)) {
-        if (os_log_type_enabled(logger, OS_LOG_TYPE_DEBUG)) {
-          os_log_debug(logger, "Could not parse full bulk metadata for %@; falling back to fstatat", frame->path);
-        }
-      }
-
-      const char *name = NULL;
-      size_t maxNameBytes = 0;
-      if (hasNameRef) {
-        name = nameRefField + nameRef.attr_dataoffset;
-      }
-      if (hasNameRef && nameRef.attr_dataoffset >= 0 && name >= recordStart && name < recordEnd) {
-        size_t availableBytes = (size_t)(recordEnd - name);
-        maxNameBytes = MIN(availableBytes, (size_t)nameRef.attr_length);
-      }
-
-      if (!hasNameRef
-          || name < recordStart
-          || name >= recordEnd
-          || maxNameBytes == 0
-          || memchr(name, '\0', maxNameBytes) == NULL) {
-        if (os_log_type_enabled(logger, OS_LOG_TYPE_DEBUG)) {
-          os_log_debug(logger, "Invalid entry in getattrlistbulk record for %@", frame->path);
-        }
-        continue;
-      }
-
-      if (++(*numProcessed) == AUTORELEASE_PERIOD) {
-        [*pool release];
-        *pool = [[NSAutoreleasePool alloc] init];
-        *numProcessed = 0;
-      }
-
-      if (abort) {
-        if (frame->dirfd >= 0) {
-          close(frame->dirfd);
-          frame->dirfd = -1;
-        }
-        return;
-      }
-
-      if (name[0] == '.' &&
-          (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
-        continue;
-      }
-
-      NSString *nameStr = [NSString stringWithUTF8String: name];
-      if (nameStr == nil) {
-        if (os_log_type_enabled(logger, OS_LOG_TYPE_DEBUG)) {
-          os_log_debug(logger, "Failed to decode entry name in %@", frame->path);
-        }
-        continue;
-      }
-
-      struct stat statBuf;
-      BOOL hasObjectType = (returnedAttrs.commonattr & ATTR_CMN_OBJTYPE) != 0;
-      BOOL isDirectory = hasObjectType && objType == VDIR;
-      BOOL isRegularFile = hasObjectType && objType == VREG;
-      BOOL hasLinkCount = isDirectory
-        ? (returnedAttrs.dirattr & ATTR_DIR_LINKCOUNT) != 0
-        : (returnedAttrs.fileattr & ATTR_FILE_LINKCOUNT) != 0;
-      BOOL needsDataLength = fileSizeMeasure == LogicalFileSize;
-      BOOL hasFileSizes = isDirectory
-        || ((returnedAttrs.fileattr & ATTR_FILE_ALLOCSIZE) != 0
-            && (!needsDataLength || (returnedAttrs.fileattr & ATTR_FILE_DATALENGTH) != 0));
-      BOOL hasCreationTime = (returnedAttrs.commonattr & ATTR_CMN_CRTIME) != 0;
-      BOOL hasModificationTime = (returnedAttrs.commonattr & ATTR_CMN_MODTIME) != 0;
-      BOOL hasAccessTime = (returnedAttrs.commonattr & ATTR_CMN_ACCTIME) != 0;
-      BOOL hasDeviceID = (returnedAttrs.commonattr & ATTR_CMN_DEVID) != 0;
-      BOOL hasFlags = (returnedAttrs.commonattr & ATTR_CMN_FLAGS) != 0;
-      BOOL canUseBulkMetadata =
-        !metadataParseFailed
-        &&
-        hasObjectType
-        && (isDirectory || isRegularFile)
-        && (returnedAttrs.commonattr & ATTR_CMN_FILEID) != 0
-        && hasLinkCount
-        && hasFileSizes
-        &&
-        // For directories we must know these to preserve behavior:
-        // - st_dev for cross-filesystem skip
-        // - st_flags for dataless skip
-        (!isDirectory || (hasDeviceID && hasFlags));
-
-      memset(&statBuf, 0, sizeof(statBuf));
-      if (canUseBulkMetadata) {
-        mode_t mode = modeForObjectType(objType);
-        if (mode == 0) {
-          canUseBulkMetadata = NO;
-        } else {
-          statBuf.st_mode = mode;
-          statBuf.st_nlink = isDirectory ? dirLinkCount : fileLinkCount;
-          if (statBuf.st_nlink == 0) {
-            statBuf.st_nlink = 1;
-          }
-          if (hasCreationTime) {
-            statBuf.st_birthtimespec = creationTime;
-          }
-          if (hasModificationTime) {
-            statBuf.st_mtimespec = modificationTime;
-          }
-          if (hasAccessTime) {
-            statBuf.st_atimespec = accessTime;
-          }
-          if (hasFlags) {
-            statBuf.st_flags = itemFlags;
-          }
-          statBuf.st_ino = fileId;
-          if (hasDeviceID) {
-            statBuf.st_dev = deviceId;
-          } else {
-            statBuf.st_dev = (dev_t)scanRootDeviceID;
-          }
-
-          if (!isDirectory) {
-            off_t allocSize = fileAllocSize > 0 ? fileAllocSize : 0;
-            statBuf.st_size = fileDataLength > 0 ? fileDataLength : 0;
-            statBuf.st_blocks = (blkcnt_t)((allocSize + 511) / 512);
-          }
-        }
-      }
-
-      if (!canUseBulkMetadata
-          && fstatat(frame->dirfd, name, &statBuf, AT_SYMLINK_NOFOLLOW) != 0) {
-        if (os_log_type_enabled(logger, OS_LOG_TYPE_DEBUG)) {
-          os_log_debug(logger, "Metadata lookup failed for %s in %@: %s", name, frame->path, strerror(errno));
-        }
-        continue;
-      }
-
-      [self visitItemWithName: nameStr
-                         stat: &statBuf
-                   parentPath: frame->path
-                       parent: frame
-                       recurse: visitDescendants];
-
-      if (visitDescendants) {
-        BOOL hasActiveStackFrame = dirStackTopIndex >= 0 && dirStackTopIndex < (int)dirStack.count;
-        if (!hasActiveStackFrame || dirStack[dirStackTopIndex] != frame) {
-          return;
-        }
-      }
+      frame->bulkRecordCount = count;
+      frame->bulkRecordIndex = 0;
+      frame->bulkRecordCursor = frame->bulkBuffer;
     }
-  }
 
-  if (!visitDescendants) {
-    if ((abort || frame->contentsEnumerated) && frame->dirfd >= 0) {
-      close(frame->dirfd);
-      frame->dirfd = -1;
+    const char *record = frame->bulkRecordCursor;
+    size_t available = frame->bulkBuffer + ATTR_BULK_BUFFER_SIZE - record;
+    uint32_t length = 0;
+    if (available >= sizeof(length)) memcpy(&length, record, sizeof(length));
+    if (length < sizeof(length) + sizeof(attribute_set_t) || length > available) {
+      os_log_error(logger, "Invalid bulk record in %@", frame->path);
+      frame->contentsEnumerated = YES;
+      break;
     }
-    return;
-  }
+    frame->bulkRecordCursor += length;
+    ++frame->bulkRecordIndex;
 
-  BOOL hasActiveStackFrame = dirStackTopIndex >= 0 && dirStackTopIndex < (int)dirStack.count;
-  if (abort || !hasActiveStackFrame || dirStack[dirStackTopIndex] != frame) {
-    if ((abort || frame->contentsEnumerated) && frame->dirfd >= 0) {
-      close(frame->dirfd);
-      frame->dirfd = -1;
+    struct stat st;
+    bool complete;
+    const char *name = parseBulkDirectoryEntry(record, length, &attrs, &st, &complete);
+    if (name == NULL || !strcmp(name, ".") || !strcmp(name, "..")) continue;
+    if (!complete && fstatat(frame->dirfd, name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+      os_log_info(logger, "Metadata lookup failed for %s in %@: %s", name, frame->path, strerror(errno));
+      continue;
     }
-    return;
+    if (++(*numProcessed) == AUTORELEASE_PERIOD) {
+      [*pool release];
+      *pool = [[NSAutoreleasePool alloc] init];
+      *numProcessed = 0;
+    }
+    NSString *nameString = [NSFileManager.defaultManager
+      stringWithFileSystemRepresentation: name length: strlen(name)];
+    if (nameString == nil) continue;
+    [self visitItemWithName: nameString stat: &st parentPath: frame->path
+                     parent: frame recurse: visitDescendants];
+    // A child was pushed: resume this buffer after that child has been completed.
+    if (visitDescendants && dirStack[dirStackTopIndex] != frame) return;
   }
 
-  // Finalize and pop this directory from the stack
-  FileItem *finalizedDir = [self finalizeStackFrame:frame];
-
-  if (frame->dirfd >= 0) {
-    close(frame->dirfd);
-    frame->dirfd = -1;
-  }
-
-  dirStackTopIndex--;
-
+  if (!visitDescendants || abort) return;
+  FileItem *finalizedDir = [self finalizeStackFrame: frame];
   if (finalizedDir != nil && frame->parentCollector != nil) {
-    [frame->parentCollector addSubdir:(DirectoryItem *)finalizedDir];
+    [frame->parentCollector addSubdir: finalizedDir];
   }
+  [frame resetFrame];
+  --dirStackTopIndex;
 }
 
 @end // @implementation TreeBuilder (PrivateMethods)
