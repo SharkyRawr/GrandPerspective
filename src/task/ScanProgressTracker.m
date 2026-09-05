@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -20,6 +20,7 @@
 #import "ScanProgressTracker.h"
 
 #import "DirectoryItem.h"
+#import "LogManager.h"
 
 @interface ScanProgressTracker (PrivateMethods)
 
@@ -117,7 +118,9 @@
     } else {
       // This can happen if a new folder is created while the scan is in progress. Ignore it to
       // avoid overestimation of progress.
-      NSLog(@"More sub-folders processed than expected at %@", dirItem.parentDirectory.path);
+      os_log(LogManager.defaultLogManager.mainLog,
+             "More sub-folders processed than expected at %@",
+             dirItem.parentDirectory.path);
     }
   }
 }

@@ -1,5 +1,5 @@
 ----------------------------------------------------------------------
-  GrandPerspective, Version 3.6.3
+  GrandPerspective, Version 3.8.0
 ----------------------------------------------------------------------
 
 * INTRODUCTION
@@ -27,7 +27,7 @@ rectangles as square as possible.
 
 This version of GrandPerspective is released as two separate files:
 
-  * GrandPerspective-3_6_3.dmg
+  * GrandPerspective-3_8_0.dmg
 
       This is the main release file. It contains all you need to run
       the application. To install the application, open the disk
@@ -39,12 +39,12 @@ This version of GrandPerspective is released as two separate files:
       English. Some translations are updated after the initial
       release. Translation updates are released as:
 
-        GrandPerspective-3_6_3-Lx.dmg
+        GrandPerspective-3_8_0-Lx.dmg
 
       Here x is a number that increases with each update. For the list
       of included languages, see LOCALIZATION.txt
 
-  * GrandPerspective-3_6_3-src.tgz
+  * GrandPerspective-3_8_0-src.tgz
 
       This contains the source code of the application. It consists of
       the Objective C source code, as well as various auxiliary files,
@@ -73,7 +73,7 @@ application: Albert Leng, Alp Tunc, Aristóteles Soares Benicio,
 Carsten Bracke, Chris Li, Dimitris Pergelidis, Emir Sarı, Jorge Ruiz
 Calpe, Helge Baumann, Javier Alfonso, Klaus Rade, Marc Croteau,
 Matteo Guarnerio, Mattia Mazzucchelli, Mauricio Panata, Maxime
-Hadjinlian, Michael Wagner, Mikko Oksalahti, and Rex Chiu.
+Hadjinlian, Michael Wagner, Mikko Oksalahti, Rex Chiu and Whyto.
 
 Many thanks to everyone that has shown support by making donations.
 They have been used to fund the required upgrade to Leopard, which has

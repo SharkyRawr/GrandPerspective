@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -294,7 +294,7 @@ static const NSInteger POPUP_GB    = 3;
   
   if ([test isKindOfClass:[CompoundAndItemTest class]]) {
     // It is a compound test. Iterate over all subtests.
-    for (FileItemTest *subTest in [((CompoundAndItemTest *)test).subItemTests objectEnumerator]) {
+    for (FileItemTest *subTest in ((CompoundAndItemTest *)test).subItemTests) {
       [self updateStateBasedOnTest: subTest];
     } 
   }
@@ -1206,7 +1206,7 @@ static const NSInteger POPUP_GB    = 3;
     UniformTypeInventory  *typeInventory = UniformTypeInventory.defaultUniformTypeInventory;
 
     NSMutableArray  *unsortedTypes = [NSMutableArray arrayWithCapacity: typeInventory.count];
-    for (UniformType *type in [typeInventory uniformTypeEnumerator]) {
+    for (UTType *type in [typeInventory uniformTypeEnumerator]) {
       [unsortedTypes addObject: type.uniformTypeIdentifier];
     }
     
@@ -1235,7 +1235,7 @@ static const NSInteger POPUP_GB    = 3;
 
   UniformTypeInventory  *typeInventory = UniformTypeInventory.defaultUniformTypeInventory;
 
-  UniformType  *type = [typeInventory uniformTypeForIdentifier: popUp.titleOfSelectedItem];
+  UTType  *type = [typeInventory uniformTypeForIdentifier: popUp.titleOfSelectedItem];
   // Restore popup state
   [popUp selectItemAtIndex: POPUP_ADD_TYPE];
 

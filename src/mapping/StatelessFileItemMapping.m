@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -21,8 +21,18 @@
 
 @implementation StatelessFileItemMapping
 
+- (BOOL)dependsOnTreeDrawerSettings {
+  return NO;
+}
+
+// Default implementation
 - (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree {
   return self;
+}
+
+- (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree
+                                   settings:(TreeDrawerBaseSettings *)settings {
+  return [self fileItemMappingForTree: tree];
 }
 
 @end

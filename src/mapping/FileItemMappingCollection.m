@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -24,9 +24,7 @@
 
 #import "StatelessFileItemMapping.h"
 #import "UniformTypeMappingScheme.h"
-#import "AccessMappingScheme.h"
-#import "CreationMappingScheme.h"
-#import "ModificationMappingScheme.h"
+#import "TimeBasedMappingSchemes.h"
 #import "MappingBySize.h"
 
 @interface MappingByLevel : StatelessFileItemMapping

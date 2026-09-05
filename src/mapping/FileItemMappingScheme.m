@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -17,5 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. 
  */
 
+#import "FileItemMappingScheme.h"
 
 NSString  *MappingSchemeChangedEvent = @"mappingSchemeChanged";

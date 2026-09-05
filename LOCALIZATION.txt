@@ -7,11 +7,12 @@ languages, besides English:
 
   * Finnish, by Mikko Oksalahti
   * French, by Marc Croteau
-  * German, by Carsten Bracke, Klaus Rade and Helge Baumann
+  * German, by Carsten Bracke, Klaus Rade, Helge Baumann and Michael
+    Wagner
   * Greek, by Dimitris Pergelidis
   * Italian, by Mattia Mazzucchelli and Matteo Guarnerio
   * Portuguese, by Aristóteles Soares Benicio and Mauricio Panata
-  * Simplified Chinese, by Albert Leng and Rex Chiu
+  * Simplified Chinese, by Albert Leng, Rex Chiu and Whyto
   * Spanish, by Jorge Ruiz Calpe
   * Turkish, by Alp Tunc and Emir Sarı
   * Dutch, by myself

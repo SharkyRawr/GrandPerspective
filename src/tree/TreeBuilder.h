@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -20,6 +20,7 @@
 #import <Cocoa/Cocoa.h>
 
 #include <fts.h>
+@import os.log;
 
 #import "FileItem.h"
 
@@ -78,9 +79,11 @@ typedef NS_ENUM(NSInteger, FileSizeEnum) {
   // as items on the stack are never popped but kept for re-use.
   int  dirStackTopIndex;
   
-  BOOL  debugLogEnabled;
   BOOL  ignoreHardLinksForDirectories;
   BOOL  fastPackageCheckEnabled;
+
+  os_log_t  logger;
+  os_log_t  trustedLogger;
 }
 
 + (NSArray *)fileSizeMeasureNames;

@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -52,7 +52,7 @@
   NSArray  *storedFilterTests = dict[@"tests"];
   NSMutableArray  *testRefs = [NSMutableArray arrayWithCapacity: storedFilterTests.count];
     
-  for (NSDictionary *storedFilterTest in [storedFilterTests objectEnumerator]) {
+  for (NSDictionary *storedFilterTest in storedFilterTests) {
     FilterTestRef  *testRef = [FilterTestRef filterTestRefFromDictionary: storedFilterTest];
     [testRefs addObject: testRef];
   }
@@ -95,7 +95,7 @@
 }
 
 - (FilterTestRef *)filterTestWithName:(NSString *)testName {
-  for (FilterTestRef *filterTest in [self.filterTests objectEnumerator]) {
+  for (FilterTestRef *filterTest in self.filterTests) {
     if ([filterTest.name isEqualToString: testName]) {
       return filterTest;
     }
@@ -118,7 +118,7 @@
   NSMutableArray  *positiveTests = [NSMutableArray arrayWithCapacity: self.numFilterTests];
   NSMutableArray  *negativeTests = [NSMutableArray arrayWithCapacity: self.numFilterTests];
 
-  for (FilterTestRef *filterTest in [self.filterTests objectEnumerator]) {
+  for (FilterTestRef *filterTest in self.filterTests) {
     FileItemTest  *subTest = [repository fileItemTestForName: filterTest.name];
 
     if (subTest != nil) {
@@ -150,7 +150,7 @@
 - (NSDictionary *)dictionaryForObject {
   NSMutableArray  *storedTests = [NSMutableArray arrayWithCapacity: self.numFilterTests];
 
-  for (FilterTestRef *testRef in [self.filterTests objectEnumerator]) {
+  for (FilterTestRef *testRef in self.filterTests) {
     [storedTests addObject: [testRef dictionaryForObject]];
   }
   

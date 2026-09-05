@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -20,6 +20,7 @@
 #import <zlib.h>
 
 #import "CompressedTextOutput.h"
+#import "LogManager.h"
 
 @implementation CompressedTextOutput
 
@@ -62,7 +63,8 @@
 
     result = deflate(&outStream, flush);
     if (result == Z_STREAM_ERROR || result == Z_BUF_ERROR) {
-      NSLog(@"Error invoking deflate: %d", result);
+      os_log(LogManager.defaultLogManager.mainLog,
+             "Error invoking deflate: %d", result);
       return NO;
     }
 
@@ -71,8 +73,9 @@
     if (numProduced > 0) {
       NSUInteger  numWritten = fwrite(compressedDataBuffer, 1, numProduced, file);
       if (numWritten != numProduced) {
-        NSLog(@"Failed to write compressed text data: %lu bytes written out of %lu.",
-              (unsigned long)numWritten, (unsigned long)numProduced);
+        os_log(LogManager.defaultLogManager.mainLog,
+               "Failed to write compressed text data: %lu bytes written out of %lu.",
+               (unsigned long)numWritten, (unsigned long)numProduced);
         return NO;
       }
     }

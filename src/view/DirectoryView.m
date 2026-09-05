@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -48,6 +48,7 @@
 #import "FileItemMappingScheme.h"
 
 #import "LocalizableStrings.h"
+#import "LogManager.h"
 
 static const float SCROLL_WHEEL_SENSITIVITY = 6.0;
 
@@ -1110,7 +1111,7 @@ CGFloat ramp(CGFloat x, CGFloat minX, CGFloat maxX) {
 }
 
 - (void) visibleTreeChanged:(NSNotification *)notification {
-  NSLog(@"visibleTreeChanged");
+  os_log_debug(LogManager.defaultLogManager.mainLog, "visibleTreeChanged");
   [self updatePathEndRect: NO];
 
   [self forceRedraw];
@@ -1160,11 +1161,7 @@ CGFloat ramp(CGFloat x, CGFloat minX, CGFloat maxX) {
   dispatch_async(dispatch_get_main_queue(), ^{
     [self postColorMappingChanged];
 
-    if (((NSNumber *)notification.userInfo[@"isInternal"]).boolValue) {
-      NSLog(@"DirectorView - internal color mapping change");
-
-      // The mapping change was due to a change not known/triggered by this directory view, so
-      // no redraw was triggered yet. We should therefore do so now.
+    if (((NSNumber *)notification.userInfo[@"forceRedraw"]).boolValue) {
       [self forceRedraw];
     }
   });

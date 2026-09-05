@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -19,13 +19,14 @@
 
 #import "ItemPathModelView.h"
 
-
 #import "DirectoryItem.h" // Imports FileItem.h
 #import "ItemPathModel.h"
 #import "ItemPathBuilder.h"
 #import "ItemLocator.h"
 #import "PreferencesPanelControl.h"
 #import "TreeDrawerBaseSettings.h"
+
+#import "LogManager.h"
 
 
 static const unsigned STICK_TO_ENDPOINT = 0xFFFF;
@@ -92,7 +93,8 @@ static const unsigned STICK_TO_ENDPOINT = 0xFFFF;
     keyboardNavigationDelta = [NSUserDefaults.standardUserDefaults
                                floatForKey: KeyboardNavigationDeltaKey];
     if (keyboardNavigationDelta <= 0) {
-      NSLog(@"Invalid value for keyboardNavigationDelta.");
+      os_log(LogManager.defaultLogManager.mainLog,
+             "Invalid value for keyboardNavigationDelta.");
       keyboardNavigationDelta = 5;
     }
     
@@ -237,7 +239,8 @@ static const unsigned STICK_TO_ENDPOINT = 0xFFFF;
 
       keyboardNavigationPos = pos;
     } else {
-      NSLog(@"Selected item did not change when navigating via keyboard");
+      os_log(LogManager.defaultLogManager.mainLog,
+             "Selected item did not change when navigating via keyboard");
     }
   }
 }

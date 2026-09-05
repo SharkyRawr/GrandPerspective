@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -24,6 +24,7 @@
 #import "LocalizableStrings.h"
 #import "ControlConstants.h"
 #import "PreferencesPanelControl.h"
+#import "LogManager.h"
 
 NSString*  TaglineTable = @"Taglines";
 NSString*  NumTaglines = @"num-taglines";
@@ -76,12 +77,14 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
     tagLineIndex = arc4random_uniform(numTagLines);
 
     forceReloadOnShow = NO;
+
+    logger = LogManager.defaultLogManager.mainLog;
   }
   return self;
 }
 
 - (void) dealloc {
-  NSLog(@"StartWindowControl.dealloc");
+  os_log_debug(logger, "StartWindowControl.dealloc");
   [mainMenuControl release];
 
   [super dealloc];
@@ -133,9 +136,9 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
     cellView.secondTextField.stringValue = docUrl.path;
   } else {
     NSString  *msg = ((numRecent > 0) ?
-                      NSLocalizedString(@"Select Other Folder",
+                      NSLocalizedString(@"Scan Other Folder",
                                         @"Entry in Start window, alongside other options") :
-                      NSLocalizedString(@"Select Folder", @"Solitairy entry in Start window"));
+                      NSLocalizedString(@"Scan Folder", @"Solitairy entry in Start window"));
 
     cellView.textField.stringValue = msg;
     cellView.secondTextField.stringValue = LocalizationNotNeeded(@"...");
@@ -150,7 +153,7 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
         proposedDropOperation:(NSTableViewDropOperation)op {
 
   NSURL *filePathURL = [NSURL getFileURLFromPasteboard: info.draggingPasteboard];
-  //NSLog(@"Drop request with %@", filePathURL);
+  os_log_debug(logger, "Drop request with %@", filePathURL);
 
   if (filePathURL.isDirectory) {
     return NSDragOperationGeneric;
@@ -165,7 +168,7 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
      dropOperation:(NSTableViewDropOperation)op {
 
   NSURL *filePathURL = [NSURL getFileURLFromPasteboard: info.draggingPasteboard];
-  //NSLog(@"Accepting drop request with %@", filePathURL);
+  os_log_debug(logger, "Accepting drop request with %@", filePathURL);
 
   [mainMenuControl scanFolder: filePathURL.path];
 
@@ -174,12 +177,12 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
 
 //----------------------------------------------------------------------------
 
-- (IBAction) scanAction:(id)sender {
-  [self startScan: recentScansView.selectedRow sender: sender];
-}
-
 - (IBAction) scanActionAfterDoubleClick:(id)sender {
   [self startScan: recentScansView.clickedRow sender: sender];
+}
+
+- (IBAction) scanAction:(id)sender {
+  [self startScan: recentScansView.selectedRow sender: sender];
 }
 
 - (IBAction) clearRecentScans:(id)sender {
@@ -263,7 +266,7 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
 - (BOOL) restoreAccessPermission {
   NSData *bookmarkData = [NSUserDefaults.standardUserDefaults objectForKey: RootVolumeBookmarkKey];
   if (!bookmarkData) {
-    NSLog(@"No bookmark found for root volume");
+    os_log_info(logger, "No bookmark found for root volume");
     return NO;
   }
 
@@ -276,22 +279,22 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
                                                   error: &error];
 
   if (isStale) {
-    NSLog(@"Replacing stale root volume bookmark");
+    os_log_info(logger, "Replacing stale root volume bookmark");
     [self storeRootVolumeBookmark: allowedUrl];
   }
 
   if (!allowedUrl) {
-    NSLog(@"Failed to resolve URL from bookmark: %@", error);
+    os_log_info(logger, "Failed to resolve URL from bookmark: %@", error);
     return NO;
   }
   if (![allowedUrl startAccessingSecurityScopedResource]) {
-    NSLog(@"Failed to restore access to: %@", allowedUrl.path);
+    os_log_info(logger, "Failed to restore access to: %@", allowedUrl.path);
     return NO;
   }
 
-  NSLog(@"Restored access to: %@", allowedUrl.path);
-  NSLog(@"If this is not your root volume, you should reset the bookmark using: defaults delete net.sourceforge.grandperspectiv %@",
-        RootVolumeBookmarkKey);
+  os_log_info(logger, "Restored access to: %@", allowedUrl.path);
+  os_log_info(logger, "If this is not your root volume, you should reset the bookmark using: defaults delete net.sourceforge.grandperspectiv %@",
+              RootVolumeBookmarkKey);
 
   return YES;
 }
@@ -299,7 +302,7 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
 - (void) performStartupChecks {
   // Try to obtain access to root volume
   if ([self restoreAccessPermission]) {
-    NSLog(@"Obtained access to root volume");
+    os_log_info(logger, "Obtained access to root volume");
     [self performFdaCheck];
   } else {
     // Could not restore previous access, so prompt for permission
@@ -312,13 +315,13 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
 
   // Check if we have Full Disk Access (Privacy)
   if ([self hasFdaPermissions]) {
-    NSLog(@"Verified FDA permissions");
+    os_log_info(logger, "Verified FDA permissions");
     if (![userDefaults boolForKey: SuppressFdaSuccessKey]) {
       [self showSuccessAlert];
       [userDefaults setBool: YES forKey: SuppressFdaSuccessKey];
     }
   } else {
-    NSLog(@"FDA permission check failed");
+    os_log_info(logger, "FDA permission check failed");
 
     [userDefaults setBool: NO forKey: SuppressFdaSuccessKey];
 
@@ -348,7 +351,7 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
       if ([selectedUrl startAccessingSecurityScopedResource]) {
         [self performFdaCheck];
       } else {
-        NSLog(@"Failed to access security scoped resource for: %@", selectedUrl.path);
+        os_log_info(logger, "Failed to access security scoped resource for: %@", selectedUrl.path);
       }
     }
   }];
@@ -427,11 +430,11 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
   [NSFileManager.defaultManager contentsOfDirectoryAtPath: path error: &error];
 
   if (error) {
-    NSLog(@"FDA permission check using %@ failed, error: %@", path, error);
+    os_log_info(logger, "FDA permission check using %@ failed, error: %@", path, error);
     return NO;
   }
 
-  NSLog(@"FDA permission check using %@ succeeded", path);
+  os_log_info(logger, "FDA permission check using %@ succeeded", path);
   return YES;
 }
 
@@ -442,12 +445,12 @@ NSString*  checkFdaPermissionsPath = @"~/Library/Safari";
                                         relativeToURL: nil
                                                 error: &error];
   if (bookmarkData) {
-    NSLog(@"Stored bookmark for %@", url.path);
+    os_log_info(logger, "Stored bookmark for %@", url.path);
 
     [NSUserDefaults.standardUserDefaults setObject: bookmarkData
                                             forKey: RootVolumeBookmarkKey];
   } else {
-    NSLog(@"Failed to create bookmark for %@: %@", url.path, error);
+    os_log(logger, "Warning: Failed to create bookmark for %@: %@", url.path, error);
   }
 }
 

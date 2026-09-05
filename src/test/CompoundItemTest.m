@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -62,7 +62,7 @@
     NSArray  *subTestDicts = dict[@"subTests"];
     NSMutableArray  *tmpSubTests = [NSMutableArray arrayWithCapacity: subTestDicts.count];
 
-    for (NSDictionary *subTestDict in [subTestDicts objectEnumerator]) {
+    for (NSDictionary *subTestDict in subTestDicts) {
       [tmpSubTests addObject: [FileItemTest fileItemTestFromDictionary: subTestDict]];
     }
     
@@ -84,7 +84,7 @@
   [super addPropertiesToDictionary: dict];
   
   NSMutableArray  *subTestsDicts = [NSMutableArray arrayWithCapacity: self.subItemTests.count];
-  for (FileItemTest *subTest in [self.subItemTests objectEnumerator]) {
+  for (FileItemTest *subTest in self.subItemTests) {
     [subTestsDicts addObject: [subTest dictionaryForObject]];
   }
 

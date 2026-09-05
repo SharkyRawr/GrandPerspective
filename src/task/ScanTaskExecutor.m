@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -24,6 +24,7 @@
 #import "ScanTaskInput.h"
 #import "ScanTaskOutput.h"
 #import "ProgressTracker.h"
+#import "LogManager.h"
 
 
 @implementation ScanTaskExecutor
@@ -70,8 +71,9 @@
   TreeContext*  scanTree = [treeBuilder buildTreeForPath: myInput.path];
   ScanTaskOutput  *scanResult = nil;
 
+  os_log_t  logger = LogManager.defaultLogManager.mainLog;
   if (scanTree != nil) {
-    NSLog(@"Done scanning: %d folders scanned (%d skipped) in %.2fs.",
+    os_log(logger, "Done scanning: %d folders scanned (%d skipped) in %.2fs.",
             [self.progressInfo[NumFoldersProcessedKey] intValue],
             [self.progressInfo[NumFoldersSkippedKey] intValue],
             -startTime.timeIntervalSinceNow);
@@ -79,10 +81,10 @@
   }
   else {
     if (treeBuilder.alertMessage != nil) {
-      NSLog(@"Scanning failed.");
+      os_log(logger, "Scanning failed.");
       scanResult = [ScanTaskOutput failedScanTaskOutput: treeBuilder.alertMessage];
     } else {
-      NSLog(@"Scanning aborted.");
+      os_log(logger, "Scanning aborted.");
     }
   }
 

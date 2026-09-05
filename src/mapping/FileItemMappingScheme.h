@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -28,6 +28,7 @@ extern NSString  *MappingSchemeChangedEvent;
 
 @class FileItemMapping;
 @class DirectoryItem;
+@class TreeDrawerBaseSettings;
 
 /* A file item mapping scheme. It represents a particular algorithm for mapping file items to hash
  * values.
@@ -36,13 +37,23 @@ extern NSString  *MappingSchemeChangedEvent;
  */
 @protocol FileItemMappingScheme
 
+- (BOOL)dependsOnTreeDrawerSettings;
+
 /* Returns a file item mapping instance that implements the scheme for the given tree. When the
  * implementation cannot be shared by multiple different views, a new instance is returned for each
  * invocation.
  *
  * The tree on which the mapping should operate is provided for mappings that depend on the tree
- * (e.g. to optimize the mapping)
+ * (e.g. to optimize the mapping).
  */
 - (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree;
+
+/* Creates file item mapping instance that depends on tree drawer settings.
+ *
+ * This needs to be used instead of fileItemMappingForTree: when dependsOnTreeDrawerSettings
+ * returns YES.
+ */
+- (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree
+                                   settings:(TreeDrawerBaseSettings *)settings;
 
 @end

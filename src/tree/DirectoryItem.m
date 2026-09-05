@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -169,10 +169,9 @@ static NSLock  *rescanFlagsMutex;
 }
 
 - (PlainFileItem *)directoryAsPlainFile {
-  UniformType  *fileType = [UniformTypeInventory.defaultUniformTypeInventory
-                            uniformTypeForExtension: self.systemPathComponent.pathExtension];
+  UTType  *fileType = [UniformTypeInventory.defaultUniformTypeInventory
+                       uniformTypeForExtension: self.systemPathComponent.pathExtension];
 
-  // Note: This item is short-lived, so it is allocated in the default zone.
   return [[[PlainFileItem alloc] initWithLabel: self.label
                                         parent: self.parentDirectory
                                           size: self.itemSize
@@ -185,8 +184,8 @@ static NSLock  *rescanFlagsMutex;
 }
 
 - (PlainFileItem *)groupedFiles {
-  UniformType  *fileType = [UniformTypeInventory.defaultUniformTypeInventory
-                            uniformTypeForExtension: self.systemPathComponent.pathExtension];
+  UTType  *fileType = [UniformTypeInventory.defaultUniformTypeInventory
+                       uniformTypeForExtension: self.systemPathComponent.pathExtension];
 
   return [[[PlainFileItem alloc] initWithLabel: self.label
                                         parent: self

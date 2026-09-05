@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -272,7 +272,7 @@ NSString *escapedXML(NSString *s, CharacterOptions escapeCharMask) {
                        PackagesAsFilesAttr,
                        filterSet.packagesAsFiles ? TrueValue : FalseValue]];
 
-  for (NamedFilter *namedFilter in [filterSet.filters objectEnumerator]) {
+  for (NamedFilter *namedFilter in filterSet.filters) {
     [self appendFilterElement: namedFilter];
   }
 
@@ -291,7 +291,7 @@ NSString *escapedXML(NSString *s, CharacterOptions escapeCharMask) {
                          NameAttr, escapedXML(namedFilter.name, ATTRIBUTE_ESCAPE_CHARS)];
   [self appendString: openElem];
 
-  for (FilterTestRef *filterTest in [filter.filterTests objectEnumerator]) {
+  for (FilterTestRef *filterTest in filter.filterTests) {
     [self appendFilterTestElement: filterTest];
   }
 

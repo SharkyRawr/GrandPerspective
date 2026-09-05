@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -45,7 +45,7 @@
 - (instancetype) initWithLabel:(NSString *)label
                         parent:(DirectoryItem *)parent
                           size:(item_size_t)size
-                          type:(UniformType *)type
+                          type:(UTType *)type
                          flags:(FileItemOptions)flags
                   creationTime:(CFAbsoluteTime)creationTime
               modificationTime:(CFAbsoluteTime)modificationTime

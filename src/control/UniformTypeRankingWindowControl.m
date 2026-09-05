@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -22,6 +22,8 @@
 #import "UniformTypeRanking.h"
 #import "UniformType.h"
 
+@import UniformTypeIdentifiers;
+
 
 NSString  *InternalTableDragType = @"net.sourceforge.grandperspectiv.GrandPerspective.TableRow";
 
@@ -35,17 +37,17 @@ NSString  *InternalTableDragType = @"net.sourceforge.grandperspectiv.GrandPerspe
 @end
 
 @interface TypeCell : NSObject {
-  UniformType  *type;
+  UTType  *type;
   BOOL  dominated;
 }
 
 // Overrides designated initialiser.
 - (instancetype) init NS_UNAVAILABLE;
 
-- (instancetype) initWithUniformType:(UniformType *)type
+- (instancetype) initWithUniformType:(UTType *)type
                            dominated:(BOOL)dominated NS_DESIGNATED_INITIALIZER;
 
-@property (nonatomic, readonly, strong) UniformType *uniformType;
+@property (nonatomic, readonly, strong) UTType *uniformType;
 @property (nonatomic, getter=isDominated) BOOL dominated;
 @property (nonatomic, readonly) NSString *toolTip;
 
@@ -325,7 +327,7 @@ NSString  *InternalTableDragType = @"net.sourceforge.grandperspectiv.GrandPerspe
   
   NSArray  *currentRanking = typeRanking.rankedUniformTypes;
   
-  for (UniformType *type in [currentRanking objectEnumerator]) {
+  for (UTType *type in currentRanking) {
     BOOL  dominated = [typeRanking isUniformTypeDominated: type];
     TypeCell  *typeCell = [[[TypeCell alloc] initWithUniformType: type
                                                        dominated: dominated] autorelease];
@@ -342,7 +344,7 @@ NSString  *InternalTableDragType = @"net.sourceforge.grandperspectiv.GrandPerspe
 - (void) commitChangedTypeList {
   NSMutableArray  *newRanking = [NSMutableArray arrayWithCapacity: typeCells.count];
     
-  for (TypeCell *typeCell in [typeCells objectEnumerator]) {
+  for (TypeCell *typeCell in typeCells) {
     [newRanking addObject: typeCell.uniformType];
   }
   
@@ -387,34 +389,33 @@ NSString  *InternalTableDragType = @"net.sourceforge.grandperspectiv.GrandPerspe
 
   // Check if the dominated status of upCell changed.
   if (upCell.isDominated) {
-    NSSet  *ancestors = upCell.uniformType.ancestorTypes;
+    NSSet  *ancestors = upCell.uniformType.supertypes;
 
     if ([ancestors containsObject: downCell.uniformType]) {
       // downCell was an ancestor of upCell, so upCell may not be dominated anymore.
-      
-      NSUInteger  i = 0;
-      NSUInteger  max_i = index - 1;
-      BOOL  dominated = NO;
-      while (i < max_i && !dominated) {
-        UniformType  *higherType = ((TypeCell *)typeCells[i]).uniformType;
-        
-        if ([ancestors containsObject: higherType]) {
-          dominated = YES;
+
+      __block BOOL  dominated = NO;
+      [typeCells enumerateObjectsUsingBlock:^(TypeCell* cell, NSUInteger idx, BOOL *stop) {
+        if (cell != upCell) {
+          UTType  *higherType = cell.uniformType;
+
+          if ([ancestors containsObject: higherType]) {
+            dominated = YES;
+            *stop = YES;
+          }
+        } else {
+          *stop = YES;
         }
-        
-        i++;
-      }
-      
-      if (! dominated) {
-        [upCell setDominated: NO];
-      }
+      }];
+
+      [upCell setDominated: dominated];
     }
   }
-  
+
   // Check if the dominated status of downCell changed.
   if (!downCell.isDominated) {
-    NSSet  *ancestors = downCell.uniformType.ancestorTypes;
-    
+    NSSet  *ancestors = downCell.uniformType.supertypes;
+
     if ([ancestors containsObject: upCell.uniformType]) {
       [downCell setDominated: YES];
     }
@@ -486,7 +487,7 @@ NSString  *InternalTableDragType = @"net.sourceforge.grandperspectiv.GrandPerspe
 
 @implementation TypeCell
 
-- (instancetype) initWithUniformType:(UniformType *)typeVal dominated:(BOOL)dominatedVal {
+- (instancetype) initWithUniformType:(UTType *)typeVal dominated:(BOOL)dominatedVal {
   if (self = [super init]) {
     type = [typeVal retain];
     dominated = dominatedVal;
@@ -501,7 +502,7 @@ NSString  *InternalTableDragType = @"net.sourceforge.grandperspectiv.GrandPerspe
   [super dealloc];
 }
 
-- (UniformType *)uniformType {
+- (UTType *)uniformType {
   return type;
 }
 
@@ -521,15 +522,17 @@ NSString  *InternalTableDragType = @"net.sourceforge.grandperspectiv.GrandPerspe
   }
 
   NSMutableString  *conformsTo = [NSMutableString stringWithCapacity: 64];
-  for (UniformType *parentType in [type.parentTypes objectEnumerator]) {
-    if (conformsTo.length > 0) {
-      [conformsTo appendString: @", "];
-    } else {
-      [conformsTo appendString: NSLocalizedString(@"Conforms to:",
-                                                  @"Part of tool tip for uniform types")];
-      [conformsTo appendString: @" "]; // Don't make trailing space part of translation text
+  for (UTType *parentType in type.parentUTTypes) {
+    if (parentType) {
+      if (conformsTo.length > 0) {
+        [conformsTo appendString: @", "];
+      } else {
+        [conformsTo appendString: NSLocalizedString(@"Conforms to:",
+                                                    @"Part of tool tip for uniform types")];
+        [conformsTo appendString: @" "]; // Don't make trailing space part of translation text
+      }
+      [conformsTo appendString: parentType.uniformTypeIdentifier];
     }
-    [conformsTo appendString: parentType.uniformTypeIdentifier];
   }
 
   if (conformsTo.length > 0) {

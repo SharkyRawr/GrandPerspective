@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -21,6 +21,8 @@
 
 #import "UniformType.h"
 #import "UniformTypeInventory.h"
+
+@import UniformTypeIdentifiers;
 
 
 NSString  *UniformTypeRankingChangedEvent = @"uniformTypeRankingChanged";
@@ -70,11 +72,10 @@ NSString  *UniformTypesRankingKey = @"uniformTypesRanking";
   
   NSArray  *rankedUTIs = [NSUserDefaults.standardUserDefaults arrayForKey: UniformTypesRankingKey];
 
-  for (NSString *uti in [rankedUTIs objectEnumerator]) {
-    UniformType  *type = [typeInventory uniformTypeForIdentifier: uti];
+  for (NSString *uti in rankedUTIs) {
+    UTType  *type = [typeInventory uniformTypeForIdentifier: uti];
     
-    if (type != nil) {
-      // Only add the type if a UniformType instance was created successfully.
+    if (!type.isUnknown || [uti isEqualToString: UTType.unknownType.identifier]) {
       [rankedTypes addObject: type];
     }
   }
@@ -84,9 +85,9 @@ NSString  *UniformTypesRankingKey = @"uniformTypesRanking";
   NSMutableArray  *rankedUTIs = [NSMutableArray arrayWithCapacity: rankedTypes.count];
   NSMutableSet  *encountered = [NSMutableSet setWithCapacity: rankedUTIs.count];
 
-  for (UniformType *type in [rankedTypes objectEnumerator]) {
-    NSString  *uti = type.uniformTypeIdentifier;
-    
+  for (UTType *type in rankedTypes) {
+    NSString  *uti = type.identifier;
+
     if (! [encountered containsObject: uti]) {
       // Should the ranked list contain duplicate UTIs, only add the first.
       [encountered addObject: uti];
@@ -111,7 +112,7 @@ NSString  *UniformTypesRankingKey = @"uniformTypesRanking";
   NSMutableSet  *typesInRanking = [NSMutableSet setWithCapacity: (rankedTypes.count + 16)];
   [typesInRanking addObjectsFromArray: rankedTypes];
 
-  for (UniformType *type in [typeInventory uniformTypeEnumerator]) {
+  for (UTType *type in [typeInventory uniformTypeEnumerator]) {
     if (! [typesInRanking containsObject: type]) {
       [rankedTypes addObject: type];
       [typesInRanking addObject: type]; 
@@ -136,15 +137,10 @@ NSString  *UniformTypesRankingKey = @"uniformTypesRanking";
 }
 
 
-- (BOOL) isUniformTypeDominated:(UniformType *)type {
-  NSUInteger  i = 0;
-  NSUInteger  i_max = rankedTypes.count;
-  
-  NSSet  *ancestors = type.ancestorTypes;
-  
-  while (i < i_max) {
-    UniformType  *higherType = rankedTypes[i];
-    
+- (BOOL) isUniformTypeDominated:(UTType *)type {
+  NSSet  *ancestors = type.supertypes;
+
+  for (UTType* higherType in rankedTypes) {
     if (higherType == type) {
       // Found the type in the list, without encountering any type that dominates it.
       return NO;
@@ -154,27 +150,19 @@ NSString  *UniformTypesRankingKey = @"uniformTypesRanking";
       // Found a type that dominates this one.
       return YES;
     }
-    
-    i++;
   }
+
   NSAssert(NO, @"Unexpected termination");
   return NO;
 }
 
 - (NSArray *)undominatedRankedUniformTypes {
   NSMutableArray  *undominatedTypes = [NSMutableArray arrayWithCapacity: rankedTypes.count];
-    
-  NSUInteger  i = 0;
-  NSUInteger  i_max = rankedTypes.count;
 
-  while (i < i_max) {
-    UniformType  *type = rankedTypes[i];
-    
+  for (UTType* type in rankedTypes) {
     if (! [self isUniformTypeDominated: type]) {
       [undominatedTypes addObject: type];
     }
-    
-    i++;
   }
   
   return undominatedTypes;
@@ -186,7 +174,7 @@ NSString  *UniformTypesRankingKey = @"uniformTypesRanking";
 @implementation UniformTypeRanking (PrivateMethods) 
 
 - (void) uniformTypeAdded:(NSNotification *)notification {
-  UniformType  *type = notification.userInfo[UniformTypeKey];
+  UTType  *type = notification.userInfo[UniformTypeKey];
 
   [rankedTypes addObject: type];
 }

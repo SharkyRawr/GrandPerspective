@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -17,31 +17,21 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. 
  */
 
-#import "CreationMappingScheme.h"
+#import <Foundation/Foundation.h>
 
-#import "FileItem.h"
-#import "TimeBasedMapping.h"
+#import "StatefullFileItemMapping.h"
 
-@interface MappingByCreation : TimeBasedMapping
-@end // @interface MappingByCreation
+/* Mapping scheme that maps each file item to a hash based on its creation time.
+ */
+@interface CreationMappingScheme : StatefullFileItemMapping
+@end
 
+/* Mapping scheme that maps each file item to a hash based on its modification time.
+ */
+@interface ModificationMappingScheme : StatefullFileItemMapping
+@end
 
-@implementation CreationMappingScheme
-
-//----------------------------------------------------------------------------
-// Implementation of FileItemMappingScheme protocol
-
-- (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree {
-  return [[[MappingByCreation alloc] initWithTree: tree] autorelease];
-}
-
-@end // @implementation CreationMappingScheme
-
-
-@implementation MappingByCreation
-
-- (CFAbsoluteTime) timeForFileItem:(FileItem *)fileItem {
-  return fileItem.creationTime;
-}
-
-@end // @implementation MappingByCreation
+/* Mapping scheme that maps each file item to a hash based on its last access time.
+ */
+@interface AccessMappingScheme : StatefullFileItemMapping
+@end

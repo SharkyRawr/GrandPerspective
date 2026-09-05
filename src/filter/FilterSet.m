@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -25,6 +25,8 @@
 
 #import "FilterRepository.h"
 #import "FilterTestRepository.h"
+
+#import "LogManager.h"
 
 @interface FilterSet (PrivateMethods)
 
@@ -166,7 +168,7 @@
 - (NSString *)description {
   NSMutableString  *descr = [NSMutableString stringWithCapacity: 32];
   
-  for (NamedFilter *namedFilter in [self.filters objectEnumerator]) {
+  for (NamedFilter *namedFilter in self.filters) {
     if (descr.length > 0) {
       [descr appendString: @", "];
     }
@@ -190,7 +192,7 @@
   // Create the file item test for the set of filters.
   NSMutableArray  *filterTests = [NSMutableArray arrayWithCapacity: namedFilters.count];
 
-  for (NamedFilter *namedFilter in [namedFilters objectEnumerator]) {
+  for (NamedFilter *namedFilter in namedFilters) {
     Filter  *filter;
 
     if (filterRepository == nil) {
@@ -214,7 +216,9 @@
       [filterTests addObject: filterTest];
     } else {
       // Apparently the filter or its item test(s) do not exist anymore.
-      NSLog(@"Could not instantiate test for filter %@", namedFilter.name);
+      os_log(LogManager.defaultLogManager.mainLog,
+             "Could not instantiate test for filter %@",
+             namedFilter.name);
     }
   }
 

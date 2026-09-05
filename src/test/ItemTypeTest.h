@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -34,7 +34,7 @@
                                strict:(BOOL)strict NS_DESIGNATED_INITIALIZER;
 - (instancetype) initWithPropertiesFromDictionary:(NSDictionary *)dict NS_DESIGNATED_INITIALIZER;
 
-// Array of UniformTypes
+// Array of UTTypes
 @property (nonatomic, readonly, copy) NSArray *matchTargets;
 
 // Controls if the matching is strict, or if conformance is tested.

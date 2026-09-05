@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -18,6 +18,8 @@
  */
 
 #import <Cocoa/Cocoa.h>
+
+@import os.log;
 
 @class WindowManager;
 @class VisibleAsynchronousTaskManager;
@@ -49,6 +51,8 @@
   int  viewCount;
   // The number of running view-producing tasks
   int  viewTaskCount;
+
+  os_log_t  logger;
 }
 
 @property (class, nonatomic, readonly) MainMenuControl *singletonInstance;

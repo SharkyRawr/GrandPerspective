@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -19,8 +19,8 @@
 
 #import "AsynchronousTaskManager.h"
 
-
 #import "TaskExecutor.h"
+#import "LogManager.h"
 
 // Fired when a new task is scheduled.
 NSString  *TaskScheduledEvent = @"taskScheduled";
@@ -226,7 +226,7 @@ enum {
     [pool release];
   } while (workLock.condition != BACKGROUND_THREAD_SHUTDOWN);
 
-  NSLog(@"Thread terminated.");
+  os_log_info(LogManager.defaultLogManager.mainLog, "Thread terminated.");
 }
 
 @end // @implementation AsynchronousTaskManager (PrivateMethods)

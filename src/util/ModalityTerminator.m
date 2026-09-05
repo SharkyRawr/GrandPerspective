@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -20,6 +20,7 @@
 #import "ModalityTerminator.h"
 
 #import "ControlConstants.h"
+#import "LogManager.h"
 
 @implementation ModalityTerminator
 
@@ -50,8 +51,9 @@
 }
 
 - (void) dealloc {
-  NSLog(@"ModalityTerminator -dealloc");
-  
+  os_log_info(LogManager.defaultLogManager.mainLog,
+              "ModalityTerminator -dealloc");
+
   [super dealloc];
 }
 

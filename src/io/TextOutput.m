@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -20,6 +20,7 @@
 #import <Foundation/Foundation.h>
 
 #import "TextOutput.h"
+#import "LogManager.h"
 
 const NSUInteger TEXT_OUTPUT_BUFFER_SIZE = 4096 * 16;
 
@@ -91,8 +92,9 @@ const NSUInteger TEXT_OUTPUT_BUFFER_SIZE = 4096 * 16;
     NSUInteger  numWritten = fwrite(dataBuffer, 1, dataBufferPos, file);
 
     if (numWritten != dataBufferPos) {
-      NSLog(@"Failed to write text data: %lu bytes written out of %lu.",
-            (unsigned long)numWritten, (unsigned long)dataBufferPos);
+      os_log(LogManager.defaultLogManager.mainLog,
+             "Failed to write text data: %lu bytes written out of %lu.",
+             (unsigned long)numWritten, (unsigned long)dataBufferPos);
       return NO;
     }
 

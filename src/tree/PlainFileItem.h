@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -21,7 +21,7 @@
 
 #import "FileItem.h"
 
-@class UniformType;
+@class UTType;
 
 /* Represents a plain file that, unlike a directory, may have a type associated with it.
  */
@@ -31,12 +31,12 @@
 - (instancetype) initWithLabel:(NSString *)label
                         parent:(DirectoryItem *)parent
                           size:(item_size_t)size
-                          type:(UniformType *)type
+                          type:(UTType *)type
                          flags:(FileItemOptions)flags
                   creationTime:(CFAbsoluteTime)creationTime
               modificationTime:(CFAbsoluteTime)modificationTime
                     accessTime:(CFAbsoluteTime)accessTime NS_DESIGNATED_INITIALIZER;
 
-@property (nonatomic, readonly, strong) UniformType *uniformType;
+@property (nonatomic, readonly, strong) UTType *uniformType;
 
 @end

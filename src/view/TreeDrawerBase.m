@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -40,6 +40,7 @@
     rectangleDrawer = [[GradientRectangleDrawer alloc] initWithColorPalette: colorPalette];
 
     treeGuide = [[FilteredTreeGuide alloc] init];
+    _treeDrawerSettings = nil;
 
     abort = NO;
   }
@@ -50,6 +51,7 @@
   [treeGuide release];
   [scanTree release];
   [rectangleDrawer release];
+  [_treeDrawerSettings release];
 
   [super dealloc];
 }
@@ -65,6 +67,14 @@
 
 
 - (void) updateSettings:(TreeDrawerBaseSettings *)settings {
+  if (settings == _treeDrawerSettings) {
+    return;
+  }
+
+  [_treeDrawerSettings release];
+  _treeDrawerSettings = [settings retain];
+
+  // For drawing efficiency, also store individual settings
   [self setShowPackageContents: settings.drawItems == DRAW_FILES];
   self.groupFiles = settings.drawItems == DRAW_FOLDERS;
   self.displayDepth = settings.displayDepth;

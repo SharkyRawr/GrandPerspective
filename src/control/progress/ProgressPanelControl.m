@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -20,7 +20,7 @@
 #import "ProgressPanelControl.h"
 
 #import "PreferencesPanelControl.h"
-
+#import "LogManager.h"
 
 extern NSString  *NumFoldersProcessedKey;
 extern NSString  *CurrentFolderPathKey;
@@ -47,7 +47,8 @@ extern NSString  *StableFolderPathKey;
 
     refreshRate = [NSUserDefaults.standardUserDefaults floatForKey: ProgressPanelRefreshRateKey];
     if (refreshRate <= 0) {
-      NSLog(@"Invalid value for progressPanelRefreshRate.");
+      os_log(LogManager.defaultLogManager.mainLog,
+             "Invalid value for progressPanelRefreshRate.");
       refreshRate = 1;
     }
   }
@@ -58,6 +59,7 @@ extern NSString  *StableFolderPathKey;
 
 - (void) dealloc {
   [taskExecutor release];
+  [summaryToolTip release];
 
   NSAssert(cancelCallback==nil, @"cancelCallback not nil.");
   
@@ -74,6 +76,9 @@ extern NSString  *StableFolderPathKey;
     self->progressSummary.font = [NSFont monospacedDigitSystemFontOfSize: 0
                                                                   weight: NSFontWeightRegular];
   }
+
+  summaryToolTip = nil;
+  summaryToolTipTag = 0;
 
   [self updateProgressDetails: @""];
   [self updateProgressSummary: 0];
@@ -104,7 +109,7 @@ extern NSString  *StableFolderPathKey;
   [self updateProgressDetails: [self pathFromTaskInput: taskInput]];
   [self updateProgressSummary: 0];
   [self updateProgressEstimate: 0];
-  
+
   taskRunning = YES;
   [self updatePanel];
 }
@@ -148,12 +153,26 @@ extern NSString  *StableFolderPathKey;
   [self performSelector: @selector(updatePanel) withObject: 0 afterDelay: refreshRate];
 }
 
-
 - (void) updateProgressDetails:(NSString *)currentPath {
   progressDetails.stringValue =
     (currentPath != nil)
     ? [NSString stringWithFormat: self.progressDetailsFormat, currentPath]
     : @"";
+
+  // Update the tooltip only when the summary changed. This ensures that the tooltip shows up when
+  // the mouse hovers over the control while the path stays the same for long enough.
+  if (![summaryToolTip isEqualToString: progressDetails.stringValue]) {
+    NSView* view = progressDetails.superview;
+    if (summaryToolTip != nil) {
+      [summaryToolTip release];
+      [view removeToolTip: summaryToolTipTag];
+    }
+
+    summaryToolTip = [progressDetails.stringValue retain];
+    summaryToolTipTag = [view addToolTipRect: progressDetails.frame
+                                       owner: summaryToolTip
+                                    userData: nil];
+  }
 }
 
 - (void) updateProgressSummary:(int)numProcessed {

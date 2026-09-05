@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -22,6 +22,7 @@
 #import "ControlConstants.h"
 #import "NameValidator.h"
 #import "NotifyingDictionary.h"
+#import "LogManager.h"
 
 #import "FileItemTest.h"
 
@@ -488,7 +489,8 @@ NSString  *MatchColumn = @"match";
       [filterTests addObject: newFilterTest];
     }
     else {
-      NSLog(@"Test \"%@\" does not exist anymore in repository.", name);
+      os_log(LogManager.defaultLogManager.mainLog,
+             "Test \"%@\" does not exist anymore in repository.", name);
 
       // Simply omit it.
     }

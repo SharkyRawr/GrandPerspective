@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -17,11 +17,24 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. 
  */
 
-#import <Foundation/Foundation.h>
+#import "StatefullFileItemMapping.h"
 
-#import "FileItemMappingScheme.h"
+@implementation StatefullFileItemMapping
 
-/* Mapping scheme that maps each file item to a hash based on its last access time.
- */
-@interface AccessMappingScheme : NSObject <FileItemMappingScheme>
+- (BOOL)dependsOnTreeDrawerSettings {
+  return NO;
+}
+
+- (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree {
+  NSAssert(NO, @"Abstract method invoked");
+  return nil;
+}
+
+// Default implementation
+- (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree
+                                   settings:(TreeDrawerBaseSettings *)settings {
+  NSAssert(NO, @"Abstract method invoked");
+  return nil;
+}
+
 @end

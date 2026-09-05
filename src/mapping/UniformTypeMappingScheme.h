@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -19,12 +19,12 @@
 
 #import <Cocoa/Cocoa.h>
 
-#import "FileItemMappingScheme.h"
+#import "StatefullFileItemMapping.h"
 
 
 @class UniformTypeRanking;
 
-@interface UniformTypeMappingScheme : NSObject <FileItemMappingScheme> {
+@interface UniformTypeMappingScheme : StatefullFileItemMapping {
 }
 
 - (instancetype) initWithUniformTypeRanking:(UniformTypeRanking *)typeRanking NS_DESIGNATED_INITIALIZER;

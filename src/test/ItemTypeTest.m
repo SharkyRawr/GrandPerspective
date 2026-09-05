@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -24,6 +24,8 @@
 #import "FileItemTestVisitor.h"
 #import "UniformType.h"
 #import "UniformTypeInventory.h"
+
+@import UniformTypeIdentifiers;
 
 
 @interface ItemTypeTest (PrivateMethods)
@@ -55,21 +57,17 @@
 - (instancetype) initWithPropertiesFromDictionary:(NSDictionary *)dict {
   if (self = [super initWithPropertiesFromDictionary: dict]) {
     NSArray  *utis = dict[@"matches"];
-    NSUInteger  numMatchTargets = utis.count;
 
     UniformTypeInventory  *typeInventory = UniformTypeInventory.defaultUniformTypeInventory;
 
-    NSMutableArray  *tmpMatches = [NSMutableArray arrayWithCapacity: numMatchTargets];
-    
-    NSUInteger  i = 0;
-    while (i < numMatchTargets) {
-      UniformType  *type = [typeInventory uniformTypeForIdentifier: utis[i]];
-        
-      if (type != nil) {
+    NSMutableArray  *tmpMatches = [NSMutableArray arrayWithCapacity: utis.count];
+
+    for (NSString* uti in utis) {
+      UTType  *type = [typeInventory uniformTypeForIdentifier: uti];
+
+      if (!type.isUnknown || [uti isEqualToString: UTType.unknownType.uniformTypeIdentifier]) {
         [tmpMatches addObject: type];
       }
-      
-      i++;
     }
     
     // Make the array immutable
@@ -103,12 +101,10 @@
     return TestNotApplicable;
   }
   
-  UniformType  *type = ((PlainFileItem *)item).uniformType;
-  NSSet  *ancestorTypes = self.isStrict ? nil : type.ancestorTypes;
-    
-  NSUInteger  i = self.matchTargets.count;
-  while (i-- > 0) {
-    UniformType  *matchType = self.matchTargets[i];
+  UTType  *type = ((PlainFileItem *)item).uniformType;
+  NSSet  *ancestorTypes = self.isStrict ? nil : type.supertypes;
+
+  for (UTType *matchType in self.matchTargets) {
     if (type == matchType || [ancestorTypes containsObject: matchType]) {
       return TestPassed;
     }
@@ -153,13 +149,10 @@
 @implementation ItemTypeTest (PrivateMethods)
 
 - (NSArray *)matchTargetsAsStrings {
-  NSUInteger  numMatchTargets = self.matchTargets.count;
-  NSMutableArray  *utis = [NSMutableArray arrayWithCapacity: numMatchTargets];
+  NSMutableArray  *utis = [NSMutableArray arrayWithCapacity: self.matchTargets.count];
 
-  NSUInteger  i = 0;
-  while (i < numMatchTargets) {
-    [utis addObject: ((UniformType *)self.matchTargets[i]).uniformTypeIdentifier];
-    i++;
+  for (UTType *type in self.matchTargets) {
+    [utis addObject: type.uniformTypeIdentifier];
   }
   
   return utis;

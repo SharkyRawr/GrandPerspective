@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -1522,7 +1522,7 @@ didStartElement:(NSString *)childElement
     item_size_t  size = [self getItemSizeAttributeValue: SizeAttr from: attribs];
     
     UniformTypeInventory  *typeInventory = UniformTypeInventory.defaultUniformTypeInventory;
-    UniformType  *fileType = [typeInventory uniformTypeForExtension: name.pathExtension];
+    UTType  *fileType = [typeInventory uniformTypeForExtension: name.pathExtension];
 
     CFAbsoluteTime  creationTime = [self getTimeAttributeValue: CreatedAttr from: attribs];
     CFAbsoluteTime  modificationTime = [self getTimeAttributeValue: ModifiedAttr from: attribs];

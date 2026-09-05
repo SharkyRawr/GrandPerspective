@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -136,7 +136,7 @@ NSString  *AppTestsKey = @"GPDefaultFilterTests";
 
 - (void) addStoredTestsFromArray:(NSArray *)testDicts
                      toLiveTests:(NSMutableDictionary *)testsByNameVal {
-  for (NSDictionary *fileItemTestDict in [testDicts objectEnumerator]) {
+  for (NSDictionary *fileItemTestDict in testDicts) {
     FileItemTest  *fileItemTest = [FileItemTest fileItemTestFromDictionary: fileItemTestDict];
     NSString  *name = fileItemTestDict[@"name"];
 

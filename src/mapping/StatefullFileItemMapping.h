@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -17,11 +17,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. 
  */
 
-#import <Foundation/Foundation.h>
+#import <Cocoa/Cocoa.h>
 
 #import "FileItemMappingScheme.h"
 
-/* Mapping scheme that maps each file item to a hash based on its creation time.
+/* Base class for file item mapping implementations that maintain state, are therefore not thread-
+ * safe, and cannot therefore be shared.
  */
-@interface CreationMappingScheme : NSObject <FileItemMappingScheme>
+@interface StatefullFileItemMapping : NSObject <FileItemMappingScheme>
 @end

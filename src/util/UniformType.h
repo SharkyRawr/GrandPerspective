@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -19,42 +19,24 @@
 
 #import <Cocoa/Cocoa.h>
 
+#import <UniformTypeIdentifiers/UTType.h>
 
-// Note: Instances are immutable (and as a result, the class is thread-safe). 
-@interface UniformType : NSObject {
-  NSString  *uti;
-  NSString  *description;
+@interface UTType (HelperMethods)
 
-  // An immutable set of "UniformType"s
-  NSSet  *parents;
-}
+/* Creates a shared file type instance that should be used for all unknown file types
+ * (irrespective of their file extension).
+ */
++ (UTType *)unknownType;
 
-// Overrides super's designated initialiser.
-- (instancetype) init NS_UNAVAILABLE;
+@property (nonatomic, readonly) BOOL isUnknown;
 
-- (instancetype) initWithUniformTypeIdentifier:(NSString *)uti
-                                   description:(NSString *)description
-                                       parents:(NSArray *)parentTypes NS_DESIGNATED_INITIALIZER;
-
+/* Thin wrapper around UTType.identifier. For the unknown type, it returns a fixed, human-readable
+ * identifier.
+ */
 @property (nonatomic, readonly, copy) NSString *uniformTypeIdentifier;
 
-@property (nonatomic, readonly, copy) NSString *description;
-
-@property (nonatomic, readonly, copy) NSSet *parentTypes;
-
-/* Dynamically constructs the set of types that the receiving type conforms to (directly or
- * indirectly).
- *
- * Conformance of a given type, typeA, to another type, typeB can be tested as follows:
- *
- *   (typeA == typeB) || ([typeA.ancestorTypes containsObject: typeB])
- *
- * The reason that there is no method implementing this test directly is that for multiple
- * subsequent conformance tests for the same type, which is typical usage, you should construct the
- * ancestor set only once. This could easily be forgotten if there would be a -conformsTo:
- * convenience method. Furthermore, such a method would also hide the execution overhead associated
- * with conformance tests.
+/* Convenience method that constructs a set of all direct parents from the set of all ancestors.
  */
-@property (nonatomic, readonly, copy) NSSet *ancestorTypes;
+@property (nonatomic, readonly, copy) NSSet *parentUTTypes;
 
 @end

@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -20,6 +20,7 @@
 #import "ColorListCollection.h"
 
 #import "PreferencesPanelControl.h"
+#import "LogManager.h"
 
 NSString* fallbackColorListKey = @"Fallback";
 NSString* fallbackColorListName = @"Fallback";
@@ -91,7 +92,7 @@ NSColorList* createGrandPerspectivePalette(void) {
     
     NSBundle  *bundle = NSBundle.mainBundle;
     NSArray  *colorListPaths = [bundle pathsForResourcesOfType: @".clr" inDirectory: @"Palettes"];
-    for (NSString *path in [colorListPaths objectEnumerator]) {
+    for (NSString *path in colorListPaths) {
       NSString  *name = path.lastPathComponent.stringByDeletingPathExtension;
 
       NSColorList  *colorList = [[[NSColorList alloc] initWithName: name
@@ -103,7 +104,8 @@ NSColorList* createGrandPerspectivePalette(void) {
 
     if (instance.isEmpty) {
       // Should not happen, but on old versions of OS X reading can fail (see Bug #81)
-      NSLog(@"Failed to load any palette. Adding fallback palette");
+      os_log(LogManager.defaultLogManager.mainLog,
+             "Failed to load any palette. Adding fallback palette");
       [instance addColorList: createFallbackPalette() key: fallbackColorListKey];
     }
 

@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -62,7 +62,7 @@
 @implementation BasicFileItemTestVisitor (PrivateMethods)
 
 - (void) visitCompoundItemTest:(CompoundItemTest *)test {
-  for (FileItemTest *subItemTest in [test.subItemTests objectEnumerator]) {
+  for (FileItemTest *subItemTest in test.subItemTests) {
     [subItemTest acceptFileItemTestVisitor: self];
   }
 }

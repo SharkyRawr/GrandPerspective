@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -65,6 +65,9 @@ extern NSString  *ViewWillCloseEvent;
 
   // Status message that is temporarily shown in the status bar
   NSString  *statusMessage;
+
+  NSURL  *customOpenApp;
+  NSURL  *customRevealApp;
 
   // The size of the view when it is not zoomed.
   NSSize  unzoomedViewSize;

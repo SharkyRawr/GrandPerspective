@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -607,7 +607,7 @@ NSString  *DisplaySettingsChangedEvent = @"displaySettingsChanged";
 
   // Update the file type fields in the Focus panel
   if (selectedItem != nil && selectedItem.isPhysical && !selectedItem.isDirectory) {
-    UniformType  *type = ((PlainFileItem *)selectedItem).uniformType;
+    UTType  *type = ((PlainFileItem *)selectedItem).uniformType;
 
     selectedItemTypeIdentifierField.stringValue = type.uniformTypeIdentifier;
     selectedItemTypeIdentifierField.toolTip =

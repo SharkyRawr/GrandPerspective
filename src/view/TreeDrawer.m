@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -27,9 +27,11 @@
 #import "TreeDrawerSettings.h"
 
 
-@interface TreeDrawer (PrivateMethod)
+@interface TreeDrawer (PrivateMethods)
 
 - (void) colorSchemeChanged:(NSNotification *)notification;
+- (void) updateColorMapper:(BOOL)forceRedraw;
+- (void) updateColorMapperForSettings:(TreeDrawerSettings *)settings;
 
 @end // @interface TreeDrawer (PrivateMethod)
 
@@ -85,7 +87,9 @@
                name: MappingSchemeChangedEvent
              object: _colorScheme];
 
-    [self colorSchemeChanged: nil];
+    if (!colorScheme.dependsOnTreeDrawerSettings) {
+      [self updateColorMapper: NO];
+    }
   }
 }
 
@@ -102,7 +106,13 @@
 - (void) updateSettings:(TreeDrawerSettings *)settings {
   [super updateSettings: settings];
 
-  self.colorScheme = settings.colorScheme;
+  if (self.colorScheme != settings.colorScheme) {
+    self.colorScheme = settings.colorScheme;
+  }
+
+  if (self.colorScheme.dependsOnTreeDrawerSettings) {
+    [self updateColorMapperForSettings: settings];
+  }
 
   [rectangleDrawer setColorPalette: settings.colorPalette];
   [rectangleDrawer setColorGradient: settings.colorGradient];
@@ -138,18 +148,30 @@
 
 @end // @implementation TreeDrawer
 
-@implementation TreeDrawer (PrivateMethod)
+@implementation TreeDrawer (PrivateMethods)
 
 - (void) colorSchemeChanged:(NSNotification *)notification {
+  // Force a redraw as the mapping change was due to an internal change impacting the scheme,
+  // instead of a settings change that the view is aware of.
+  [self updateColorMapper: YES];
+}
+
+- (void) updateColorMapper:(BOOL)forceRedraw {
   self.colorMapper = [self.colorScheme fileItemMappingForTree: scanTree];
 
-  // Indicate if the trigger was internal (the same scheme is still active, but something changed
-  // internally that may impact the mapping) or external (a different scheme was configured)
-  BOOL  isInternal = notification != nil;
   NSNotificationCenter  *nc = NSNotificationCenter.defaultCenter;
   [nc postNotificationName: ColorMappingChangedEvent
                     object: self
-                  userInfo: @{@"isInternal": [NSNumber numberWithBool: isInternal]}];
+                  userInfo: @{@"forceRedraw": [NSNumber numberWithBool: forceRedraw]}];
+}
+
+- (void) updateColorMapperForSettings:(TreeDrawerSettings *)settings {
+  self.colorMapper = [self.colorScheme fileItemMappingForTree: scanTree settings: settings];
+
+  NSNotificationCenter  *nc = NSNotificationCenter.defaultCenter;
+  [nc postNotificationName: ColorMappingChangedEvent
+                    object: self
+                  userInfo: @{@"forceRedraw": [NSNumber numberWithBool: NO]}];
 }
 
 @end // @implementation TreeDrawer (PrivateMethod)

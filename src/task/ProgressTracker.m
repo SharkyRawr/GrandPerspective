@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -21,6 +21,7 @@
 
 #import "DirectoryItem.h"
 #import "PreferencesPanelControl.h"
+#import "LogManager.h"
 
 NSString  *NumFoldersProcessedKey = @"numFoldersProcessed";
 NSString  *NumFoldersSkippedKey = @"numFoldersSkipped";
@@ -39,7 +40,8 @@ NSString  *EstimatedProgressKey = @"estimatedProgress";
     NSUserDefaults  *userDefaults = NSUserDefaults.standardUserDefaults;
     stableTimeInterval = [userDefaults floatForKey: ProgressPanelStableTimeKey];
     if (stableTimeInterval <= 0) {
-      NSLog(@"Invalid value for stableTimeInterval");
+      os_log(LogManager.defaultLogManager.mainLog,
+             "Invalid value for stableTimeInterval");
       stableTimeInterval = 1;
     }
   }

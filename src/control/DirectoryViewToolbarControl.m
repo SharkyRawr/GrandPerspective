@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -27,6 +27,7 @@
 #import "ToolbarSegmentedCell.h"
 #import "MainMenuControl.h"
 #import "LocalizableStrings.h"
+#import "LogManager.h"
 
 #import "TreeContext.h"
 
@@ -261,7 +262,8 @@ NSMutableDictionary  *createToolbarItemLookup = nil;
   SelectorObject  *selObj = createToolbarItemLookup[itemIdentifier];
   if (selObj == nil) {
     // May happen when user preferences refers to old/outdated toolbar items
-    NSLog(@"Unrecognized toolbar item: %@", itemIdentifier);
+    os_log(LogManager.defaultLogManager.mainLog,
+           "Unrecognized toolbar item: %@", itemIdentifier);
     return nil;
   }
   

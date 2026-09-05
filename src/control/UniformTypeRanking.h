@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -30,13 +30,13 @@ extern NSString  *UniformTypeRankingChangedEvent;
 extern NSString  *UniformTypesRankingKey;
 
 
-@class UniformType;
+@class UTType;
 @class UniformTypeInventory;
 
 @interface UniformTypeRanking : NSObject {
 
   // Ordered list of all known types
-  NSMutableArray<UniformType *>  *rankedTypes;
+  NSMutableArray<UTType *>  *rankedTypes;
 }
 
 @property (class, nonatomic, readonly) UniformTypeRanking *defaultUniformTypeRanking;
@@ -76,7 +76,7 @@ extern NSString  *UniformTypesRankingKey;
  * Note: This method checks dynamically if a given type is dominated, so it should be invoked with a
  * bit of care.
  */
-- (BOOL) isUniformTypeDominated:(UniformType *)type;
+- (BOOL) isUniformTypeDominated:(UTType *)type;
 
 /* Returns the ranked list of types, excluding those that are dominated. See also
  * -isUniformTypeDominated:.

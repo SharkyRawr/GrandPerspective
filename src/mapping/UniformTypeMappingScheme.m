@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -24,6 +24,8 @@
 #import "UniformType.h"
 #import "UniformTypeRanking.h"
 
+@import UniformTypeIdentifiers;
+
 
 @interface UniformTypeMappingScheme (PrivateMethods)
 
@@ -44,6 +46,8 @@
 
 - (instancetype) initWithUniformTypeRanking:(UniformTypeRanking *)typeRanking
   NS_DESIGNATED_INITIALIZER;
+
+- (NSUInteger) findIndexForType:(UTType *)uniformType;
 
 @end
 
@@ -80,7 +84,7 @@
 
 
 //----------------------------------------------------------------------------
-// Implementation of FileItemMappingScheme protocol
+// Implementation of FileItemMappingScheme
 
 - (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree {
   return [[[MappingByUniformType alloc] initWithUniformTypeRanking: _uniformTypeRanking]
@@ -121,42 +125,43 @@
 }
 
 
+- (NSUInteger) findIndexForType:(UTType *)targetType {
+  __block NSUInteger retVal = NSIntegerMax;
+
+  NSSet *ancestorTypes = targetType.supertypes;
+
+  [orderedTypes enumerateObjectsUsingBlock:^(UTType *type, NSUInteger idx, BOOL *stop) {
+    if (type == targetType || [ancestorTypes containsObject: type]) {
+      // Found the first type in the list that the file item conforms to.
+      retVal = idx;
+      *stop = YES;
+    }
+  }];
+
+  return retVal;
+}
+
 //----------------------------------------------------------------------------
 // Implementation of FileItemMapping protocol
 
 - (NSUInteger) hashForFileItem:(FileItem *)item atDepth:(NSUInteger)depth {
-  UniformType  *type = item.isDirectory ? nil : ((PlainFileItem *)item).uniformType;
-  
+  UTType  *type = item.isDirectory ? nil : ((PlainFileItem *)item).uniformType;
+
   if (type == nil) {
     // Unknown type
     return NSIntegerMax;
   }
-  
-  NSString  *uti = type.uniformTypeIdentifier;
-  NSNumber  *hash = hashForUTICache[uti];
+
+  NSNumber  *hash = hashForUTICache[type.identifier];
   if (hash != nil) {
     return hash.intValue;
   }
-    
-  NSSet  *ancestorTypes = type.ancestorTypes;
-  NSUInteger  utiIndex = 0;
-  
-  while (utiIndex < orderedTypes.count) {
-    UniformType  *orderedType = orderedTypes[utiIndex];
-  
-    if (type == orderedType || [ancestorTypes containsObject: orderedType]) {
-      // Found the first type in the list that the file item conforms to.
-      
-      // Add it to the cache for next time.
-      hashForUTICache[uti] = @(utiIndex);
-      return utiIndex;
-    }
-    
-    utiIndex++;
-  }
-  
-  NSAssert(NO, @"No conforming type found.");
-  return 0;
+
+  NSUInteger  utiIndex = [self findIndexForType: type];
+
+  // Add it to the cache for next time.
+  hashForUTICache[type.identifier] = @(utiIndex);
+  return utiIndex;
 }
 
 - (NSUInteger) colorIndexForHash:(NSUInteger)hash numColors:(NSUInteger)numColors {
@@ -177,11 +182,10 @@
                              @"Misc. description for File type mapping scheme.");
   }
   
-  UniformType  *type = orderedTypes[colorIndex];
-  
+  UTType  *type = orderedTypes[colorIndex];
   NSString  *descr = type.description;
    
-  return (descr != nil) ? descr : type.uniformTypeIdentifier;
+  return (descr != nil) ? descr : type.identifier;
 }
 
 @end

@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -17,19 +17,30 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA. 
  */
 
-#import "ModificationMappingScheme.h"
+#import "TimeBasedMappingSchemes.h"
 
 #import "FileItem.h"
 #import "TimeBasedMapping.h"
 
+@interface MappingByCreation : TimeBasedMapping
+@end // @interface MappingByCreation
+
 @interface MappingByModification : TimeBasedMapping
 @end // @interface MappingByModification
 
+@interface MappingByAccess : TimeBasedMapping
+@end // @interface MappingByAccess
+
+
+@implementation CreationMappingScheme
+
+- (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree {
+  return [[[MappingByCreation alloc] initWithTree: tree] autorelease];
+}
+
+@end // @implementation CreationMappingScheme
 
 @implementation ModificationMappingScheme
-
-//----------------------------------------------------------------------------
-// Implementation of FileItemMappingScheme protocol
 
 - (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree {
   return [[[MappingByModification alloc] initWithTree: tree] autorelease];
@@ -37,6 +48,22 @@
 
 @end // @implementation ModificationMappingScheme
 
+@implementation AccessMappingScheme
+
+- (FileItemMapping *)fileItemMappingForTree:(DirectoryItem *)tree {
+  return [[[MappingByAccess alloc] initWithTree: tree] autorelease];
+}
+
+@end // @implementation AccessMappingScheme
+
+
+@implementation MappingByCreation
+
+- (CFAbsoluteTime) timeForFileItem:(FileItem *)fileItem {
+  return fileItem.creationTime;
+}
+
+@end // @implementation MappingByCreation
 
 @implementation MappingByModification
 
@@ -45,3 +72,12 @@
 }
 
 @end // @implementation MappingByModification
+
+
+@implementation MappingByAccess
+
+- (CFAbsoluteTime) timeForFileItem:(FileItem *)fileItem {
+  return fileItem.accessTime;
+}
+
+@end // @implementation MappingByAccess

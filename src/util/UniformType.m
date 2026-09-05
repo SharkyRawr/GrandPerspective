@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -19,69 +19,53 @@
 
 #import "UniformType.h"
 
-@implementation UniformType
+// The UTI that is used when the type is unknown (i.e. when there is no proper UTI associated with
+// a given file or extension).
+//
+// It is only used as an internal UTI and not exported/visible outside the application.
+NSString  *UnknownTypeUTI = @"unknown";
 
-- (instancetype) initWithUniformTypeIdentifier:(NSString *)utiVal
-                                   description:(NSString *)descriptionVal
-                                       parents:(NSArray *)parentTypes {
 
-  if (self = [super init]) { 
-    uti = [utiVal retain];
-    description = [descriptionVal retain];
-    
-    parents = [[NSSet setWithArray: parentTypes] retain];
-  }
-  
-  return self;
-  
+@implementation UTType (HelperMethods)
+
++ (UTType *)unknownType {
+  static UTType*  unknownType;
+  static dispatch_once_t  onceToken;
+
+  dispatch_once(&onceToken, ^{
+    unknownType = [[UTType typeWithFilenameExtension: @"gp-unknown-filetype"] retain];
+  });
+
+  return unknownType;
 }
 
-- (void) dealloc {
-  [uti release];
-  [description release];
-  [parents release];
-  
-  [super dealloc];
-}
-
-
-- (NSString *)uniformTypeIdentifier {
-  return uti;
+- (BOOL) isUnknown {
+  return (self == UTType.unknownType);
 }
 
 - (NSString *)description {
-  return description;
+  return (self.isUnknown
+          ? NSLocalizedString(@"unknown file type", @"Description for 'unknown' UTI.")
+          : self.localizedDescription);
 }
 
-- (NSSet *)parentTypes {
-  return parents;
+- (NSString *)uniformTypeIdentifier {
+  return (self.isUnknown ? UnknownTypeUTI : self.identifier);
 }
 
-
-- (NSSet *)ancestorTypes {
-  NSMutableSet  *ancestors = [NSMutableSet setWithCapacity: 16];
-
-  NSMutableArray  *toVisit = [NSMutableArray arrayWithCapacity: 8];
-  [toVisit addObject: self];
-  
-  while (toVisit.count > 0) {
-    // Visit next node in the list.
-    UniformType  *current = toVisit.lastObject;
-    [toVisit removeLastObject];
-  
-    // Add parents that have not yet been encountered to list of nodes to visit.
-    for (UniformType *parentType in [current.parentTypes objectEnumerator]) {
-      if (! [ancestors containsObject: parentType]) {
-        // Only visit ancestor types that have not yet been encountered. This ensures that the
-        // search time is linear in the number of ancestors (despite there possibly being multiple
-        // paths to certain ancestors).
-        [ancestors addObject: parentType];
-        [toVisit addObject: parentType];
-      }
-    }
+- (NSSet *)parentUTTypes {
+  if (self.isUnknown) {
+    return [NSSet set];
   }
 
-  return ancestors;
+  NSSet*  ancestors = self.supertypes;
+  NSMutableSet*  parents = [NSMutableSet setWithSet: ancestors];
+
+  for (UTType* tp in ancestors) {
+    [parents minusSet: tp.supertypes];
+  }
+
+  return parents;
 }
 
 @end

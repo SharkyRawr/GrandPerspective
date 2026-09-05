@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -20,6 +20,7 @@
 #import <Foundation/Foundation.h>
 
 #import "CompressedInput.h"
+#import "LogManager.h"
 
 const NSUInteger COMPRESSED_BUFFER_SIZE = 2048;
 const NSUInteger DECOMPRESSED_BUFFER_SIZE = 4096 * 32;
@@ -52,6 +53,8 @@ const NSUInteger DECOMPRESSED_BUFFER_SIZE = 4096 * 32;
 
     compressedDataBuffer = malloc(COMPRESSED_BUFFER_SIZE);
     decompressedDataBuffer = malloc(DECOMPRESSED_BUFFER_SIZE);
+
+    logger = LogManager.defaultLogManager.mainLog;
   }
 
   return self;
@@ -121,28 +124,28 @@ const NSUInteger DECOMPRESSED_BUFFER_SIZE = 4096 * 32;
   while (numDecompressedBytesAvailable == 0 && compressionStream.avail_in > 0) {
     // Consume lingering compressed data
     if (![self decompress]) {
-      NSLog(@"Error during decompression");
+      os_log(logger, "Error during decompression");
       return [self close];
     }
   }
 
   while (numDecompressedBytesAvailable == 0 && inputDataAvailable) {
     if (![self processNewInput]) {
-      NSLog(@"Error processing new input");
+      os_log(logger, "Error processing new input");
       return [self close];
     }
   }
 
   while (numDecompressedBytesAvailable > 0 && outputSpaceAvailable) {
     if (![self writeNewOutput]) {
-      NSLog(@"Error writing new output");
+      os_log(logger, "Error writing new output");
       return [self close];
     }
 
     if (numDecompressedBytesAvailable == 0 && inputEndEncountered) {
       // Finalize the stream. This may generate more decompressed data.
       if (![self finalize]) {
-        NSLog(@"Failed to finalize compressed input");
+        os_log(logger, "Failed to finalize compressed input");
         return [self close];
       }
     }
@@ -185,7 +188,7 @@ const NSUInteger DECOMPRESSED_BUFFER_SIZE = 4096 * 32;
                                    maxLength: numDecompressedBytesAvailable];
   if (numWritten < 0) {
     NSError  *error = outputStream.streamError;
-    NSLog(@"Error writing to stream: %@", error.localizedDescription);
+    os_log(logger, "Error writing to stream: %@", error.localizedDescription);
     return NO;
   }
 
@@ -229,7 +232,7 @@ const NSUInteger DECOMPRESSED_BUFFER_SIZE = 4096 * 32;
 
     int result = inflate(&compressionStream, flush);
     if (result != Z_OK && result != Z_STREAM_END) {
-      NSLog(@"Unexpected return code for inflate: %d", result);
+      os_log(logger, "Unexpected return code for inflate: %d", result);
       return NO;
     }
 
@@ -238,8 +241,8 @@ const NSUInteger DECOMPRESSED_BUFFER_SIZE = 4096 * 32;
     numDecompressedBytesAvailable = DECOMPRESSED_BUFFER_SIZE - compressionStream.avail_out;
     decompressedDataP = decompressedDataBuffer;
     if (compressionStream.avail_in > 0) {
-      NSLog(@"Warning: %d bytes remaining in input buffer after inflate",
-            compressionStream.avail_in);
+      os_log(logger, "Warning: %d bytes remaining in input buffer after inflate",
+             compressionStream.avail_in);
     }
   } else {
     numDecompressedBytesAvailable = compressionStream.avail_in;

@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -19,6 +19,8 @@
 
 #import <Cocoa/Cocoa.h>
 
+@import os.log;
+
 #import "MainMenuControl.h"
 
 @interface StartWindowControl : NSWindowController <NSTableViewDataSource, NSTableViewDelegate> {
@@ -33,6 +35,8 @@
   int  tagLineIndex;
 
   BOOL  forceReloadOnShow;
+
+  os_log_t  logger;
 }
 
 // Override designated initialisers
@@ -41,8 +45,8 @@
 
 - (instancetype) initWithMainMenuControl:(MainMenuControl *)mainMenuControl NS_DESIGNATED_INITIALIZER;
 
-- (IBAction) scanAction:(id)sender;
 - (IBAction) helpAction:(id)sender;
+- (IBAction) scanAction:(id)sender;
 - (IBAction) scanActionAfterDoubleClick:(id)sender;
 - (IBAction) clearRecentScans:(id)sender;
 

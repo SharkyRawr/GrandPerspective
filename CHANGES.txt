@@ -3,10 +3,76 @@
 ======================================================================
 
 ----------------------------------------------------------------------
+  Version 3.8.0, 23-08-2026
+----------------------------------------------------------------------
+
+Minor improvements:
+- The size upperbound when coloring by size now depends on the Display
+  settings [#118]
+- Added keyboard shortcut for Show/Hide Control Panel [#119]
+- Improved viewing of logs for diagnostic purposes (by using os.log)
+  - Updated help documentation for analyzing crashes and hangs
+
+Refactoring:
+- Bumped deployment target to macOS 14.0
+- Removed usage of deprecated APIs
+- Replaced custom type UniformType by library type UTType
+- Removed use of objectEnumerator in for loops
+
+Fixes:
+- Fixed type conformance declaration for GrandPerspective scan dumps
+
+
+----------------------------------------------------------------------
+  Version 3.7.2, 31-05-2026
+----------------------------------------------------------------------
+
+Fixes:
+- Fixed: Error when trying to open file of unknown type [#126]
+
+
+----------------------------------------------------------------------
+  Version 3.7.1, 15-05-2026
+----------------------------------------------------------------------
+
+Minor improvements:
+- Minor updates to icon
+
+
+----------------------------------------------------------------------
+  Version 3.7.0, 02-05-2026
+----------------------------------------------------------------------
+
+Minor improvements:
+- Updated user interface to be compatible with Liquid Glass
+  - Updated icon
+  - Updated status bar margins
+- More gracefully terminate aborted scans
+- Add guard to openFile:withApplication: method to investigate
+  crash reports from the field
+
+Fixes:
+- Fixed: Memory leak in tree refresh logic
+- Fixed: Application exits on refresh or filtered rescan
+
+
+----------------------------------------------------------------------
+  Version 3.6.4, 21-03-2026
+----------------------------------------------------------------------
+
+Minor improvements:
+- Minor UI updates to start window [#124]
+- Add tooltip to view truncated progress panel path [#116]
+
+Updated localizations:
+- Chinese, overhaul and update by Whyto
+
+
+----------------------------------------------------------------------
   Version 3.6.3, 24-01-2026
 ----------------------------------------------------------------------
 
-Fix:
+Fixes:
 - Fixed regression introduced as part of retain-release code clean-up
 
 Updated localizations:
@@ -16,6 +82,7 @@ Updated localizations:
 - Italian
 - Spanish
 - Turkish
+
 
 ----------------------------------------------------------------------
   Version 3.6.2, 16-01-2026
@@ -27,6 +94,7 @@ Fixes:
 
 Code clean-up:
 - Improve adherence to strict retain-release patterns
+
 
 ----------------------------------------------------------------------
   Version 3.6.1 (localized v1), 02-01-2026

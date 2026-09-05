@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -41,6 +41,8 @@
 #import "ItemNameTest.h"
 #import "StringContainmentTest.h"
 #import "SelectiveItemTest.h"
+
+#import "LogManager.h"
 
 
 NSString  *DeleteNothing = @"delete nothing";
@@ -93,6 +95,7 @@ NSString  *ViewWillCloseEvent = @"viewWillClose";
 
 - (void) fileSizeUnitSystemChanged;
 
+- (NSURL *)appUrlForOpeningFileItem:(FileItem *)fileItem;
 - (void) openFile:(FileItem *)fileItem withApplication:(NSURL *)appUrl;
 @end
 
@@ -143,6 +146,18 @@ NSString  *ViewWillCloseEvent = @"viewWillClose";
     scanPathName = [treeContext.scanTree.path retain];
     invisiblePathName = nil;
     statusMessage = nil;
+
+    customOpenApp = nil;
+    customRevealApp = nil;
+    NSUserDefaults  *userDefaults = NSUserDefaults.standardUserDefaults;
+    NSString  *path = [userDefaults stringForKey: CustomFileOpenApplication];
+    if (path.length > 0) {
+      customOpenApp = [[NSURL fileURLWithPath: path] retain];
+    }
+    path = [userDefaults stringForKey: CustomFileRevealApplication];
+    if (path.length > 0) {
+      customRevealApp = [[NSURL fileURLWithPath: path] retain];
+    }
   }
 
   // The control is responsible for itself. It auto-releases when the window closes.
@@ -168,6 +183,9 @@ NSString  *ViewWillCloseEvent = @"viewWillClose";
   [statusMessage release];
 
   [_previewPanel release];
+
+  [customOpenApp release];
+  [customRevealApp release];
   
   [super dealloc];
 }
@@ -330,19 +348,7 @@ NSString  *ViewWillCloseEvent = @"viewWillClose";
 - (IBAction) openFile:(id)sender {
   FileItem  *fileItem = pathModelView.selectedFileItem;
 
-  NSUserDefaults  *userDefaults = NSUserDefaults.standardUserDefaults;
-  NSWorkspace  *workspace = NSWorkspace.sharedWorkspace;
-  NSString  *customApp = [userDefaults stringForKey: CustomFileOpenApplication];
-  NSURL  *appUrl;
-
-  if (customApp.length > 0) {
-    NSLog(@"Opening %@ using custom app %@", fileItem.systemPath, customApp);
-    appUrl = [NSURL fileURLWithPath: customApp];
-  } else {
-    appUrl = [workspace URLForApplicationToOpenURL: [NSURL fileURLWithPath: fileItem.systemPath]];
-  }
-
-  [self openFile: fileItem withApplication: appUrl];
+  [self openFile: fileItem withApplication: [self appUrlForOpeningFileItem: fileItem]];
 }
 
 - (IBAction) previewFile:(id)sender {
@@ -356,16 +362,13 @@ NSString  *ViewWillCloseEvent = @"viewWillClose";
 
 - (IBAction) revealFileInFinder:(id)sender {
   FileItem  *fileItem = pathModelView.selectedFileItem;
-  NSString  *filePath = fileItem.systemPath;
-  
-  NSUserDefaults  *userDefaults = NSUserDefaults.standardUserDefaults;
-  NSString  *customApp = [userDefaults stringForKey: CustomFileRevealApplication];
-  NSWorkspace  *workspace = NSWorkspace.sharedWorkspace;
 
-  if (customApp.length > 0) {
-    NSLog(@"Revealing %@ using custom app %@", fileItem.systemPath, customApp);
+  if (customRevealApp != nil) {
+    os_log(LogManager.defaultLogManager.mainLog,
+           "Revealing %@ using custom app %@",
+           fileItem.systemPath, customRevealApp);
 
-    [self openFile: fileItem withApplication: [NSURL fileURLWithPath: customApp]];
+    [self openFile: fileItem withApplication: customRevealApp];
     return;
   }
 
@@ -388,6 +391,9 @@ NSString  *ViewWillCloseEvent = @"viewWillClose";
   }
 
   NSString  *rootPath = (package != nil) ? package.systemPath : invisiblePathName;
+
+  NSString  *filePath = fileItem.systemPath;
+  NSWorkspace  *workspace = NSWorkspace.sharedWorkspace;
 
   if ([workspace selectFile: filePath inFileViewerRootedAtPath: rootPath]) {
     return; // All went okay
@@ -657,7 +663,10 @@ NSString  *ViewWillCloseEvent = @"viewWillClose";
           && selectedFile.isPhysical
       
           // Can only open plain files and packages
-          && ( !selectedFile.isDirectory || selectedFile.isPackage ));
+          && ( !selectedFile.isDirectory || selectedFile.isPackage )
+
+          // Can only open files for which there is an app to open it
+          && [self appUrlForOpeningFileItem: selectedFile] != nil);
 }
 
 - (BOOL) canPreviewSelectedFile {
@@ -932,20 +941,36 @@ NSString  *ViewWillCloseEvent = @"viewWillClose";
   [self updateSelectionInStatusbar: nil];
 }
 
+- (NSURL *) appUrlForOpeningFileItem:(FileItem *)fileItem {
+  return (customOpenApp
+          ? customOpenApp
+          : [NSWorkspace.sharedWorkspace URLForApplicationToOpenURL:
+             [NSURL fileURLWithPath: fileItem.systemPath]]);
+}
+
 - (void) openFile:(FileItem *)fileItem withApplication:(NSURL *)appUrl {
+  if (appUrl == nil) {
+    os_log(LogManager.defaultLogManager.mainLog,
+           "Ignoring openFile:withApplication: request with nil appUrl");
+    return;
+  }
+
   NSWorkspace  *workspace = NSWorkspace.sharedWorkspace;
   NSString  *filePath = fileItem.systemPath;
 
   [workspace openURLs: @[[NSURL fileURLWithPath: filePath]]
  withApplicationAtURL: appUrl
-          configuration: [NSWorkspaceOpenConfiguration configuration]
+        configuration: [NSWorkspaceOpenConfiguration configuration]
     completionHandler: ^(NSRunningApplication *app, NSError *error) {
     if (error == nil) {
-      NSLog(@"Opened %@ using %@", filePath, appUrl);
+      os_log_info(LogManager.defaultLogManager.mainLog,
+                  "Opened %@ using %@", filePath, appUrl);
       return;
     }
 
-    NSLog(@"Failed to open %@ using %@: %@", filePath, appUrl, error.description);
+    os_log(LogManager.defaultLogManager.mainLog,
+           "Failed to open %@ using %@: %@",
+           filePath, appUrl, error.description);
     dispatch_async(dispatch_get_main_queue(), ^() {
       NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 
@@ -967,7 +992,6 @@ NSString  *ViewWillCloseEvent = @"viewWillClose";
     });
   }];
 }
-
 
 @end // @implementation DirectoryViewControl (PrivateMethods)
 

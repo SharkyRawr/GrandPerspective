@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -93,7 +93,7 @@
                       toPopUp:(NSPopUpButton *)popUp
                        select:(NSString *)selectName
                         table:(NSString *)tableName {
-  for (NSString *name in [names objectEnumerator]) {
+  for (NSString *name in names) {
     [self addLocalisedNameFor: name
                       toPopUp: popUp
                        select: [name isEqualToString: selectName]
@@ -133,7 +133,7 @@
                               table:(NSString *)tableName {
   int  index = (int)popUp.numberOfItems;
 
-  for (NSString *name in [names objectEnumerator]) {
+  for (NSString *name in names) {
     NSString  *localizedName = [NSBundle.mainBundle localizedStringForKey: name
                                                                     value: nil
                                                                     table: tableName];

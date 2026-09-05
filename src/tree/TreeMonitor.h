@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.6.3 
+/* GrandPerspective, Version 3.8.0 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -19,6 +19,8 @@
 
 #import <Cocoa/Cocoa.h>
 
+@import os.log;
+
 @class TreeContext;
 
 @interface TreeMonitor : NSObject {
@@ -30,7 +32,7 @@
 
   NSArray<NSString *> *rootPathComponents;
 
-  BOOL debugLogEnabled;
+  os_log_t logger;
 }
 
 @property (nonatomic, readonly, weak) TreeContext *treeContext;
