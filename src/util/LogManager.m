@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.8.0 
+/* GrandPerspective, Version 3.8.1 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -39,7 +39,7 @@
 
     mainLog = os_log_create("net.sf.grandperspectiv", "main");
     trustedLog = (enableTrustedLog
-                  ? os_log_create("net.sf.grandperspectiv", "main")
+                  ? os_log_create("net.sf.grandperspectiv", "trusted")
                   : OS_LOG_DISABLED);
 
     os_log(mainLog, "trusted log enabled = %d", enableTrustedLog);

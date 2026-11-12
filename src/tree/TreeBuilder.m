@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.8.0 
+/* GrandPerspective, Version 3.8.1 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -302,11 +302,23 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
 
   DirectoryItem  *scanTree = [self treeRootForPath: path context: treeContext];
 
+  numDirectoryReadErrors = 0;
+  numSkippedDataless = 0;
   [progressTracker startingTask];
 
   BOOL  ok = [self buildTreeForDirectory: scanTree atPath: path];
 
   [progressTracker finishedTask];
+  if (numDirectoryReadErrors) {
+    os_log_info(logger,
+                "Failed to read %lu directories (enable full logging for details)",
+                numDirectoryReadErrors);
+  }
+  if (numSkippedDataless) {
+    os_log_info(logger,
+                "Skipped scanning of %lu dataless folders (enable full logging for details)",
+                numSkippedDataless);
+  }
 
   if (! ok) {
     return nil;
@@ -356,7 +368,10 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
         case FTS_DNR:
         case FTS_ERR:
         case FTS_NS:
-          os_log_info(logger, "Error reading directory %s: %s", entp->fts_path, strerror(entp->fts_errno));
+          numDirectoryReadErrors++;
+          // Optionally log to trusted logger, which is disabled by default.
+          os_log_info(trustedLogger, "Error reading directory %{public}s: %s",
+                      entp->fts_path, strerror(entp->fts_errno));
           continue;
       }
 
@@ -556,13 +571,13 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
   [volumeRoot getResourceValue: &volumeFormat forKey: NSURLVolumeLocalizedFormatDescriptionKey
                          error: &error];
   if (error == nil) {
-    os_log_info(logger, "Volume format = %@", volumeFormat);
+    os_log_info(logger, "Volume format = %{public}@", volumeFormat);
   }
 
   ignoreHardLinksForDirectories = NO; // Default
   struct statfs volinfo;
   if (statfs(volumeRoot.path.fileSystemRepresentation, &volinfo) == 0) {
-    os_log_info(logger, "fstypename = %s", volinfo.f_fstypename);
+    os_log_info(logger, "fstypename = %{public}s", volinfo.f_fstypename);
     if (strcmp("apfs", volinfo.f_fstypename) == 0) {
       // APFS does not support hardlinking directories. However, directories will have a non-zero
       // hardlink count, as each file it contains increases the count. So ignore this count when
@@ -750,7 +765,8 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
       // trigger download of their contents. This is unwanted, as the state of the volume should
       // not change as a result of the scan. Additionally, it would slow down scanning
       // unnecessarily (and block scanning if there is no network access).
-      os_log_info(logger, "Skipping scan of dataless folder %s", entp->fts_path);
+      numSkippedDataless++;
+      os_log_info(trustedLogger, "Skipping scan of dataless folder %s", entp->fts_path);
     } else if ([lastPathComponent isEqualToString: @"Data"] &&
                [dirChildItem.path isEqualToString: @"/System/Volumes/Data"]) {
       // Do not scan the contents of the System Data volume to prevent its contents from being
