@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.8.0 
+/* GrandPerspective, Version 3.8.1 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -56,6 +56,7 @@ NSString  *UniformTypeKey = @"uniformType";
   if (self = [super init]) {
     typeForExtension = [[NSMutableDictionary alloc] initWithCapacity: 32];
     typeForUTI = [[NSMutableDictionary alloc] initWithCapacity: 32];
+    numUnrecognizedExtensions = 0;
 
     UTType*  unknownType = UTType.unknownType;
     typeForUTI[unknownType.uniformTypeIdentifier] = unknownType;
@@ -77,6 +78,10 @@ NSString  *UniformTypeKey = @"uniformType";
   return typeForUTI.count;
 }
 
+- (NSUInteger) numUnrecognizedExtensions {
+  return numUnrecognizedExtensions;
+}
+
 
 - (NSEnumerator *)uniformTypeEnumerator {
   return [typeForUTI objectEnumerator];
@@ -95,7 +100,8 @@ NSString  *UniformTypeKey = @"uniformType";
     // Only create types for declared types (not for dynamically created ones).
     type = [self uniformTypeForIdentifier: type.identifier];
   } else {
-    os_log_debug(LogManager.defaultLogManager.mainLog,
+    numUnrecognizedExtensions++;
+    os_log_debug(LogManager.defaultLogManager.trustedLog,
                  "Unrecognized extension: %{public}@", ext);
     type = UTType.unknownType;
   }

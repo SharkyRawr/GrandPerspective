@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.8.0 
+/* GrandPerspective, Version 3.8.1 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -43,11 +43,14 @@ extern NSString  *UniformTypeKey;
 
   // Maps NSStrings to UniformTypes
   NSMutableDictionary  *typeForUTI;
+
+  NSUInteger  numUnrecognizedExtensions;
 }
 
 @property (class, nonatomic, readonly) UniformTypeInventory *defaultUniformTypeInventory;
 
 @property (nonatomic, readonly) NSUInteger count;
+@property (nonatomic, readonly) NSUInteger numUnrecognizedExtensions;
 
 /* Returns the type associated with the given file extension. If there is no properly defined type,
  * it returns the type the generic "unknown" type (see -unknownUniformType).

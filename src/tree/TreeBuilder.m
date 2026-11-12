@@ -1,4 +1,4 @@
-/* GrandPerspective, Version 3.8.0 
+/* GrandPerspective, Version 3.8.1 
  *   A utility for macOS that graphically shows disk usage. 
  * Copyright (C) 2005-2025, Erwin Bonsma 
  * 
@@ -371,11 +371,23 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
 
   DirectoryItem  *scanTree = [self treeRootForPath: path context: treeContext];
 
+  numDirectoryReadErrors = 0;
+  numSkippedDataless = 0;
   [progressTracker startingTask];
 
   BOOL  ok = [self buildTreeForDirectory: scanTree atPath: path];
 
   [progressTracker finishedTask];
+  if (numDirectoryReadErrors) {
+    os_log_info(logger,
+                "Failed to read %lu directories (enable full logging for details)",
+                numDirectoryReadErrors);
+  }
+  if (numSkippedDataless) {
+    os_log_info(logger,
+                "Skipped scanning of %lu dataless folders (enable full logging for details)",
+                numSkippedDataless);
+  }
 
   if (! ok) {
     return nil;
@@ -620,13 +632,13 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
   [volumeRoot getResourceValue: &volumeFormat forKey: NSURLVolumeLocalizedFormatDescriptionKey
                          error: &error];
   if (error == nil) {
-    os_log_info(logger, "Volume format = %@", volumeFormat);
+    os_log_info(logger, "Volume format = %{public}@", volumeFormat);
   }
 
   ignoreHardLinksForDirectories = NO; // Default
   struct statfs volinfo;
   if (statfs(volumeRoot.path.fileSystemRepresentation, &volinfo) == 0) {
-    os_log_info(logger, "fstypename = %s", volinfo.f_fstypename);
+    os_log_info(logger, "fstypename = %{public}s", volinfo.f_fstypename);
     if (strcmp("apfs", volinfo.f_fstypename) == 0) {
       // APFS does not support hardlinking directories. However, directories will have a non-zero
       // hardlink count, as each file it contains increases the count. So ignore this count when
@@ -804,6 +816,7 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
       // trigger download of their contents. This is unwanted, as the state of the volume should
       // not change as a result of the scan. Additionally, it would slow down scanning
       // unnecessarily (and block scanning if there is no network access).
+      numSkippedDataless++;
       skipReason = @"Skipping scan of dataless folder";
     } else if ([name isEqualToString: @"Data"] &&
                [dirChildItem.path isEqualToString: @"/System/Volumes/Data"]) {
@@ -817,7 +830,7 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
     }
 
     if (skipReason) {
-      os_log_info(logger, "%@ %@", skipReason, path);
+      os_log_info(trustedLogger, "%{public}@ %{public}@", skipReason, path);
       [progressTracker skippedFolder: dirChildItem];
       visitDescendants = NO;
     } else {
@@ -827,7 +840,8 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
                               name.fileSystemRepresentation,
                               O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
         if (subdirfd < 0) {
-          os_log_debug(logger, "Error opening directory %@: %s", path, strerror(errno));
+          numDirectoryReadErrors++;
+          os_log_info(trustedLogger, "Error opening directory %{public}@: %s", path, strerror(errno));
           visitDescendants = NO;
         } else {
           [self addToStack: dirChildItem
@@ -948,13 +962,15 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
 - (int) startScan:(NSString *)path {
   int fd = open(path.fileSystemRepresentation, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
   if (fd < 0) {
-    os_log_debug(logger, "Error: open failed for %@: %s", path, strerror(errno));
+    numDirectoryReadErrors++;
+    os_log_info(trustedLogger, "Error: open failed for %{public}@: %s", path, strerror(errno));
     return -1;
   }
 
   struct stat st;
   if (fstat(fd, &st) != 0) {
-    os_log_debug(logger, "Error: fstat failed for %@: %s", path, strerror(errno));
+    numDirectoryReadErrors++;
+    os_log_info(trustedLogger, "Error: fstat failed for %{public}@: %s", path, strerror(errno));
     close(fd);
     return -1;
   }
@@ -971,7 +987,8 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
                   autoreleasePool:(NSAutoreleasePool **)pool {
   struct attrlist attrs = bulkDirectoryAttributes(fileSizeMeasure == LogicalFileSize);
   if (frame->bulkBuffer == NULL) {
-    os_log_error(logger, "Failed to allocate scan buffer for %@", frame->path);
+    numDirectoryReadErrors++;
+    os_log_info(trustedLogger, "Failed to allocate scan buffer for %{public}@", frame->path);
     frame->contentsEnumerated = YES;
   }
 
@@ -982,7 +999,8 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
       if (count <= 0) {
         if (count < 0 && errno == EINTR) continue;
         if (count < 0) {
-          os_log_error(logger, "getattrlistbulk failed for %@: %s", frame->path, strerror(errno));
+          numDirectoryReadErrors++;
+          os_log_info(trustedLogger, "getattrlistbulk failed for %{public}@: %s", frame->path, strerror(errno));
         }
         frame->contentsEnumerated = YES;
         break;
@@ -997,7 +1015,8 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
     uint32_t length = 0;
     if (available >= sizeof(length)) memcpy(&length, record, sizeof(length));
     if (length < sizeof(length) + sizeof(attribute_set_t) || length > available) {
-      os_log_error(logger, "Invalid bulk record in %@", frame->path);
+      numDirectoryReadErrors++;
+      os_log_info(trustedLogger, "Invalid bulk record in %{public}@", frame->path);
       frame->contentsEnumerated = YES;
       break;
     }
@@ -1009,7 +1028,8 @@ CFAbsoluteTime convertTimespec(struct timespec ts) {
     const char *name = parseBulkDirectoryEntry(record, length, &attrs, &st, &complete);
     if (name == NULL || !strcmp(name, ".") || !strcmp(name, "..")) continue;
     if (!complete && fstatat(frame->dirfd, name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
-      os_log_info(logger, "Metadata lookup failed for %s in %@: %s", name, frame->path, strerror(errno));
+      numDirectoryReadErrors++;
+      os_log_info(trustedLogger, "Metadata lookup failed for %{public}s in %{public}@: %s", name, frame->path, strerror(errno));
       continue;
     }
     if (++(*numProcessed) == AUTORELEASE_PERIOD) {

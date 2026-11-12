@@ -21,6 +21,24 @@
 }
 @end
 
+@interface DiagnosticBuilder : TreeBuilder
+- (NSUInteger)directoryReadErrors;
+- (NSUInteger)skippedDataless;
+@end
+@implementation DiagnosticBuilder
+- (NSUInteger)directoryReadErrors { return numDirectoryReadErrors; }
+- (NSUInteger)skippedDataless { return numSkippedDataless; }
+- (BOOL)visitItemWithName:(NSString *)name stat:(struct stat *)st
+              parentPath:(NSString *)path parent:(id)frame recurse:(BOOL)recurse {
+  // Simulate cloud metadata without creating a real dataless folder.
+  if ([name isEqualToString:@"dataless"]) st->st_flags |= SF_DATALESS;
+  if ([name isEqualToString:@"vanished"]) {
+    assert(rmdir([[path stringByAppendingPathComponent:name] fileSystemRepresentation]) == 0);
+  }
+  return [super visitItemWithName:name stat:st parentPath:path parent:frame recurse:recurse];
+}
+@end
+
 static int openDescriptors(void) {
   int count = 0;
   for (int fd = 0; fd < 1024; ++fd) if (fcntl(fd, F_GETFD) != -1) ++count;
@@ -60,7 +78,16 @@ int main(void) {
     assert([cancel buildTreeForPath:path] == nil);
     assert(openDescriptors() == before); // FDs released before builder is deallocated.
     [cancel release];
+    for (NSString *name in @[@"dataless", @"vanished"]) {
+      assert([fm createDirectoryAtPath:[path stringByAppendingPathComponent:name]
+          withIntermediateDirectories:NO attributes:nil error:NULL]);
+    }
+    DiagnosticBuilder *diagnostics = [[DiagnosticBuilder alloc] init];
+    TreeContext *context = [diagnostics buildTreeForPath:path];
+    assert(context && context.scanTree.itemSize == 10500);
+    assert(diagnostics.directoryReadErrors == 1 && diagnostics.skippedDataless == 1);
+    [diagnostics release];
     assert([fm removeItemAtPath:path error:NULL]);
-    puts("Tree sizes, hardlink deduplication, multi-buffer traversal, shallow refresh and cancellation passed.");
+    puts("Tree sizes, hardlink deduplication, multi-buffer traversal, shallow refresh, cancellation and diagnostic counts passed.");
   }
 }
